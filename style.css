@@ -221,3 +221,17 @@ body[data-theme="cozy"] .season-progress{background:linear-gradient(110deg,#435f
 body[data-theme="cozy"] .season-progress>div:first-child b{color:#fff7e7}
 body[data-theme="cozy"] .season-progress>div:first-child small{color:#f0eadc}
 @media(max-width:700px){.season-progress{grid-template-columns:1fr auto;padding:12px}.season-progress>.link{grid-column:2;grid-row:1}.pass-rewards{grid-template-columns:repeat(2,minmax(0,1fr))}.pass-reward{min-height:125px}}
+
+/* v0.7 roster, market and mobile controls */
+#marketSort{min-width:190px;background:#0b1725;color:#edf8ff;border:1px solid #2b4158;border-radius:4px;padding:8px 10px;font-size:9px}
+.bench-row,.reserve-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:5px 0;border-bottom:1px solid #26394f}
+.bench-row .bench-player{flex:1;min-width:130px;margin:0}
+.bench-row .mini-action,.reserve-row .mini-action{padding:7px 8px;font-size:8px;white-space:nowrap}
+.reserve-row>span:first-child{flex:1;min-width:130px}
+#clubExtraSettings{display:grid;gap:7px;margin:12px 0}
+#clubExtraSettings input{width:100%;background:#0b1725;color:#edf8ff;border:1px solid #31485e;border-radius:4px;padding:10px}
+#musicToggle{margin-top:10px}
+#reserveList{min-height:44px}
+@media(max-width:560px){#marketSort{flex:1 1 100%;width:100%}.bench-row,.reserve-row{gap:6px}.bench-row .mini-action,.reserve-row .mini-action{min-height:34px;padding:8px 7px}.actions button{touch-action:manipulation}.match-layout button{min-height:38px}}
+
+#resetSaveSettings{margin-top:8px;border-color:#9a5260;color:#ffb4bd}

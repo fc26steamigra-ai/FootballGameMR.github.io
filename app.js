@@ -54,7 +54,7 @@ function positionsFor(f){let rows={'4-3-3':[[50,91],[15,74],[38,78],[62,78],[85,
 function drawSquad(){let pitch=$('#pitch');if(!pitch)return;pitch.querySelectorAll('.player').forEach(x=>x.remove());let pos=positionsFor(state.formation);state.startingXI.forEach((id,i)=>{let p=playerById(id),xy=pos[i];let el=document.createElement('button');el.className='player';el.type='button';el.style.left=xy[0]+'%';el.style.top=xy[1]+'%';el.innerHTML=`<i>${p.ovr}</i><small>${escapeHTML(p.name.split(' ').slice(-1)[0])}</small>`;el.title=p.name+' · '+p.pos+' · '+p.ovr;el.addEventListener('click',()=>selectSquadPlayer(i));pitch.append(el);});if($('#formationLabel'))$('#formationLabel').textContent=state.formation;let bench=$('#benchList');if(bench)bench.innerHTML=state.bench.map(id=>{let p=playerById(id);return `<button class="bench-player" data-bench="${id}"><b>${p.ovr}</b> ${escapeHTML(p.pos)} · ${escapeHTML(p.name)}</button>`;}).join('')||'<span>Запасных пока нет</span>';let avg=Math.round(state.startingXI.reduce((n,id)=>n+playerById(id).ovr,0)/Math.max(1,state.startingXI.length));if($('#squadOVR'))$('#squadOVR').textContent=avg;}
 function selectSquadPlayer(index){let current=playerById(state.startingXI[index]);let options=state.bench.map(id=>{let p=playerById(id);return `<option value="${id}">${escapeHTML(p.name)} · ${p.pos} · ${p.ovr}</option>`}).join('');modal('ЗАМЕНА В СОСТАВЕ',`Выбран: ${current.name}. Выбери игрока из запаса для обмена.`, `<select id="squadSwapSelect" class="modal-select">${options}</select><button class="primary full" id="confirmSquadSwap" ${state.bench.length?'':'disabled'}>ЗАМЕНИТЬ ИГРОКА</button>`);$('#confirmSquadSwap')?.addEventListener('click',()=>{let id=$('#squadSwapSelect')?.value;if(!id)return;let ix=state.bench.indexOf(id);state.bench[ix]=state.startingXI[index];state.startingXI[index]=id;save();drawSquad();closeModal();toast('Состав обновлён');});}
 $('#formation')?.addEventListener('change',e=>{state.formation=e.target.value;save();drawSquad();});$$('.styles button').forEach(b=>b.addEventListener('click',()=>{state.style=b.textContent;$$('.styles button').forEach(x=>x.classList.toggle('selected',x===b));save();toast('Стиль игры: '+state.style);}));$('#subs')?.addEventListener('click',()=>{modal('УПРАВЛЕНИЕ СОСТАВОМ','Нажми на футболиста на поле, чтобы заменить его игроком из запаса.');});
-function rewardText(r){return Object.entries(r).map(([k,v])=>`+${fmt(v)} ${{coins:'монет',gems:'самоцветов',eventCoins:'зимних монет'}[k]||k}`).join(' ');}
+function rewardText(r){return Object.entries(r).map(([k,v])=>`+${fmt(v)} ${{coins:'монет',gems:'самоцветов',eventCoins:'зимних самоцветов'}[k]||k}`).join(' ');}
 function renderQuests(target,defs,claimed,progress,event=false){let el=$(target);if(!el)return;el.innerHTML=defs.map((q,i)=>{let done=(progress[q.stat]||0)>=q.goal,got=claimed.includes(i);return `<article class="quest"><div class="quest-icon">${event?'❄':'✦'}</div><div class="quest-info"><b>${q.title}</b><small>${q.desc} · ${Math.min(progress[q.stat]||0,q.goal)}/${q.goal} · ${got?'Награда получена':done?'Можно забрать':'В процессе'}</small><div class="bar"><i style="width:${Math.min(100,(progress[q.stat]||0)/q.goal*100)}%"></i></div></div><div class="quest-reward">${event?'+'+q.reward+' зимних':rewardText(q.reward)}</div><button class="claim" data-claim="${i}" data-event="${event}" ${!done||got?'disabled':''}>${got?'ПОЛУЧЕНО':done?'ЗАБРАТЬ':'ЗАКРЫТО'}</button></article>`;}).join('');}
 function renderAll(){renderQuests('#weeklyQuests',weeklyDefs,state.weeklyClaimed,state.weeklyProgress);renderQuests('#eventQuests',eventDefs,state.eventClaimed,state.eventProgress,true);if($('#weekCount'))$('#weekCount').textContent=state.weeklyClaimed.length+'/'+weeklyDefs.length;if($('#weekBar'))$('#weekBar').style.width=(state.weeklyClaimed.length/weeklyDefs.length*100)+'%';let done=state.weeklyClaimed.length;if($('#weeklyHomeText'))$('#weeklyHomeText').textContent=done+' ИЗ '+weeklyDefs.length+' ПОЛУЧЕНО';if($('#weeklyHomeBar'))$('#weeklyHomeBar').style.width=(done/weeklyDefs.length*100)+'%';renderPass();}
 document.addEventListener('click',e=>{let b=e.target.closest('[data-claim]');if(!b||b.disabled)return;let i=+b.dataset.claim,ev=b.dataset.event==='true',defs=ev?eventDefs:weeklyDefs,claimed=ev?state.eventClaimed:state.weeklyClaimed,progress=ev?state.eventProgress:state.weeklyProgress,q=defs[i];if(!q||claimed.includes(i)||(progress[q.stat]||0)<q.goal)return;claimed.push(i);if(ev){state.eventCoins+=q.reward;state.eventPoints+=q.reward;state.seasonXP+=q.reward;state.weeklyProgress.eventPoints+=q.reward;}else Object.entries(q.reward).forEach(([k,v])=>state[k]+=v);save();updateWallet();renderAll();toast('Задание выполнено — награда получена!');});
@@ -317,7 +317,7 @@ function fcucTradeEndrick(){
  const players=chosen.map(id=>playerById(id));
  if(players.some(p=>!['ST','LW','RW','CAM'].includes(p.pos)||p.ovr<60)){toast('Для обмена нужны атакующие игроки с рейтингом от 60');return;}
  const endrick=FCUC_EVENT_DB.find(p=>fcucNameKey(p.name)==='endrick')||{name:'Endrick',pos:'ST',ovr:78,club:'Winter Wunderkind',age:20,type:'event'};
- for(const id of chosen){state.players=state.players.filter(p=>p.id!==id);state.bench=state.bench.filter(x=>x!==id);}
+ for(const id of chosen){state.players=state.players.filter(p=>p.id!==id);state.bench=state.bench.filter(x=>x!==id);state.reserve=(state.reserve||[]).filter(x=>x!==id);}
  const owned={...endrick,id:fcucId('exchange'),price:0};
  state.players.push(owned);if(state.bench.length<7)state.bench.push(owned.id);
  save();drawSquad();renderReserve();renderEventMarket();updateOverall();
@@ -327,7 +327,7 @@ function fcucSellPlayer(id){
  if(state.startingXI.includes(id)){toast('Нельзя продавать игрока стартового состава');return;}
  const p=playerById(id);if(!state.players.some(x=>x.id===id))return;
  const price=Math.max(2000,Math.round(fcucValue(p.ovr)*.38/1000)*1000);
- state.players=state.players.filter(x=>x.id!==id);state.bench=state.bench.filter(x=>x!==id);
+ state.players=state.players.filter(x=>x.id!==id);state.bench=state.bench.filter(x=>x!==id);state.reserve=(state.reserve||[]).filter(x=>x!==id);
  state.coins+=price;save();updateWallet();drawSquad();renderMarket();
  modal('ИГРОК ПРОДАН',`${p.name} продан за ${fmt(price)} монет. Цена продажи ниже рыночной стоимости.`);
 }
@@ -362,7 +362,7 @@ document.addEventListener('click',e=>{
  const eb=e.target.closest('[data-event-buy]');if(eb){e.preventDefault();e.stopImmediatePropagation();fcucBuyEventCard(eb.dataset.eventBuy,+eb.dataset.cost);return;}
  const winterPack=e.target.closest('.winter-pack-buy');if(winterPack){e.preventDefault();e.stopImmediatePropagation();const cost=Number(winterPack.dataset.winterCost||30);if((state.winterGems||0)<cost){toast('Недостаточно зимних самоцветов');return;}const pool=FCUC_EVENT_DB.filter(p=>!fcucOwned(p.name));if(!pool.length){toast('Все карточки зимнего события уже собраны');return;}const p=pool[Math.floor(Math.random()*pool.length)];state.winterGems-=cost;state.eventCoins=state.winterGems;const ok=fcucAddPlayerToPool(p);if(ok){state.stats.packs=(state.stats.packs||0)+1;state.weeklyProgress.packs=(state.weeklyProgress.packs||0)+1;if(typeof fcucV06AddXP==='function')fcucV06AddXP(10,'зимний набор');}if(!ok){state.winterGems+=cost;return;}save();updateWallet();renderAll();renderEventMode();modal('ЗИМНИЙ НАБОР ОТКРЫТ',`${p.name} · ${p.ovr} OVR. Карточка события добавлена в клуб.`,fcucCardHTML(p));return;}
  const pack=e.target.closest('.pack-buy');if(pack){e.preventDefault();e.stopImmediatePropagation();fcucOpenPack(+pack.dataset.cost,pack.dataset.type||'standard');return;}
- const promote=e.target.closest('[data-promote]');if(promote){e.preventDefault();e.stopImmediatePropagation();let id=promote.dataset.promote;if(state.bench.length>=7){toast('Запас заполнен. Освободи место.');return;}state.bench.push(id);drawSquad();renderReserve();save();return;}
+ const promote=e.target.closest('[data-promote]');if(promote){e.preventDefault();e.stopImmediatePropagation();let id=promote.dataset.promote;if(state.bench.length>=7){toast('Запас заполнен. Освободи место.');return;}state.reserve=(state.reserve||[]).filter(x=>x!==id);state.bench.push(id);drawSquad();renderReserve();save();return;}
  const sell=e.target.closest('[data-sell]');if(sell){e.preventDefault();e.stopImmediatePropagation();fcucSellPlayer(sell.dataset.sell);return;}
  if(e.target.id==='eventMatchPlay'){e.preventDefault();e.stopImmediatePropagation();playEventMatch();return;}
  if(e.target.id==='tradeEndrick'){e.preventDefault();e.stopImmediatePropagation();fcucTradeEndrick();return;}
@@ -392,7 +392,7 @@ matchTick=function(){
  if(!match.active)return;
  match.minute++;
  const avg=state.startingXI.reduce((n,id)=>n+playerById(id).ovr,0)/Math.max(1,state.startingXI.length);
- const mod=fcucTacticGoalModifier();
+ let mod=fcucTacticGoalModifier();if(match.style==='Атака')mod+=.003;else if(match.style==='Оборона')mod-=.003;
  const strength=Math.max(.78,Math.min(1.24,.94+(avg-60)*.006));
  const homeChance=Math.max(.006,Math.min(.032,(.014+mod)*strength));
  const awayChance=Math.max(.006,Math.min(.03,.0145+fcucTacticAwayModifier()));
@@ -529,7 +529,7 @@ const FCUC_V06_PASS_REWARDS=[
 function renderPassV06(){
  const el=$('#passRewards');if(!el)return;
  const total=Number(state.seasonXP)||0,level=1+Math.floor(total/FCUC_V06_XP_PER_LEVEL),within=total%FCUC_V06_XP_PER_LEVEL;
- const heading=document.querySelector('#pass .week-banner .week-progress b');if(heading)heading.textContent=`${fmt(within)} / ${FCUC_V06_XP_PER_LEVEL} XP · УР. ${level}`;
+ const heading=document.querySelector('#pass .week-banner .week-progress b');if(heading)heading.textContent=`ПРОГРЕСС УРОВНЯ ${level}: ${fmt(within)} / ${FCUC_V06_XP_PER_LEVEL} XP`;
  const p=$('#passPoints');if(p)p.textContent=fmt(total);
  el.innerHTML=FCUC_V06_PASS_REWARDS.map((r,i)=>{
    const lv=i+1,need=lv*FCUC_V06_XP_PER_LEVEL,claimed=state.passV06Claimed.includes(lv),ready=total>=need;
@@ -637,3 +637,199 @@ applyClub=function(){fcucV06ApplyClubBase();applyThemeV06();};
 fcucV06MigrateSave();
 if($('#formation'))$('#formation').value=state.formation;if($('#matchFormation'))$('#matchFormation').value=state.formation;if($('#matchStyle'))$('#matchStyle').value=state.style;
 applyClub();applyTacticUI();drawSquad();renderMarket();renderEventMode();renderAll();renderPassV06();updateWallet();updateOverall();fcucV06SyncProgress();applyThemeV06();save();
+
+
+/* ================= FC ULTIMATE CLUB v0.7 PATCH =================
+   Mobile-safe match controls, protected roster/reserves, timed quests,
+   balanced event economy, club audio, market sorting and tactical OVR.
+*/
+(function(){
+'use strict';
+
+// --- Date helpers and 3-day / weekly quest cycles ---
+const fcucV07DateKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const fcucV07DayNumber=(key)=>{const [y,m,d]=key.split('-').map(Number);return Math.floor(Date.UTC(y,m-1,d)/86400000);};
+const fcucV07Monday=()=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const fcucV07QuestSets=[
+ [
+  {title:'Сыграй 3 матча',desc:'Заверши любые три матча',stat:'matches',goal:3,reward:3},
+  {title:'Забей 4 гола',desc:'Забей четыре мяча',stat:'goals',goal:4,reward:4},
+  {title:'Одержи 2 победы',desc:'Выиграй два матча',stat:'wins',goal:2,reward:5}
+ ],
+ [
+  {title:'Сыграй 4 матча',desc:'Заверши четыре матча',stat:'matches',goal:4,reward:4},
+  {title:'Забей 5 голов',desc:'Забей пять мячей',stat:'goals',goal:5,reward:5},
+  {title:'Одержи 3 победы',desc:'Выиграй три матча',stat:'wins',goal:3,reward:6}
+ ],
+ [
+  {title:'Сыграй 2 матча',desc:'Заверши два матча',stat:'matches',goal:2,reward:3},
+  {title:'Забей 3 гола',desc:'Забей три мяча',stat:'goals',goal:3,reward:4},
+  {title:'Одержи 1 победу',desc:'Выиграй один матч',stat:'wins',goal:1,reward:3}
+ ],
+ [
+  {title:'Сыграй 5 матчей',desc:'Заверши пять матчей',stat:'matches',goal:5,reward:5},
+  {title:'Забей 6 голов',desc:'Забей шесть мячей',stat:'goals',goal:6,reward:6},
+  {title:'Одержи 3 победы',desc:'Выиграй три матча',stat:'wins',goal:3,reward:6}
+ ]
+];
+function fcucV07RefreshCycles(){
+ const today=fcucV07DateKey();
+ if(!state.quest3DayAnchor)state.quest3DayAnchor=today;
+ let elapsed=fcucV07DayNumber(today)-fcucV07DayNumber(state.quest3DayAnchor);
+ if(elapsed>=3){const jumps=Math.floor(elapsed/3);const [y,m,d]=state.quest3DayAnchor.split('-').map(Number);const n=new Date(Date.UTC(y,m-1,d+jumps*3));state.quest3DayAnchor=`${n.getUTCFullYear()}-${String(n.getUTCMonth()+1).padStart(2,'0')}-${String(n.getUTCDate()).padStart(2,'0')}`;state.dailyProgress={matches:0,goals:0,wins:0};state.dailyClaimed=[];state.eventProgress={matches:0,goals:0,wins:0};state.eventClaimed=[];}
+ const monday=fcucV07Monday();
+ if(state.weekStart!==monday){state.weekStart=monday;state.weeklyProgress={matches:0,goals:0,packs:0,wins:0,buys:0,eventPoints:0};state.weeklyClaimed=[];state.branchProgress={matches:0,goals:0,wins:0,packs:0};state.branchClaimed=false;}
+ if(state.eventMatchDate!==today){state.eventMatchDate=today;state.eventMatchesToday=0;}
+ if(!state.branchProgress)state.branchProgress={matches:0,goals:0,wins:0,packs:0};
+ if(!state.dailyProgress)state.dailyProgress={matches:0,goals:0,wins:0};
+ if(!Array.isArray(state.dailyClaimed))state.dailyClaimed=[];
+ if(!Array.isArray(state.eventClaimed))state.eventClaimed=[];
+ if(!Array.isArray(state.weeklyClaimed))state.weeklyClaimed=[];
+}
+fcucV07RefreshCycles();
+function fcucV07ActiveDailyDefs(){const n=fcucV07DayNumber(state.quest3DayAnchor||fcucV07DateKey());return fcucV07QuestSets[Math.floor(n/3)%fcucV07QuestSets.length];}
+function fcucV07UpdateCountdowns(){const now=new Date();const next3=new Date(state.quest3DayAnchor+'T00:00:00');next3.setDate(next3.getDate()+3);let ms=Math.max(0,next3-now);const d=Math.floor(ms/86400000),h=Math.floor(ms%86400000/3600000),m=Math.floor(ms%3600000/60000);const q=$('#questCycleResetLabel');if(q)q.textContent=`Следующее обновление через ${d} дн. ${h} ч. ${m} мин.`;const monday=new Date();monday.setHours(0,0,0,0);monday.setDate(monday.getDate()+((8-monday.getDay())%7||7));ms=Math.max(0,monday-now);const wd=Math.floor(ms/86400000),wh=Math.floor(ms%86400000/3600000),wm=Math.floor(ms%3600000/60000);const w=$('#weeklyResetLabel');if(w)w.textContent=`${wd}д ${wh}ч ${wm}м`; }
+renderDaily=function(){
+ fcucV07RefreshCycles();const el=$('#dailyQuests');if(!el)return;const defs=fcucV07ActiveDailyDefs();
+ el.innerHTML=defs.map((q,i)=>{const v=Number(state.dailyProgress[q.stat])||0,done=v>=q.goal,got=state.dailyClaimed.includes(i);return `<article class="quest"><div class="quest-icon">❄</div><div class="quest-info"><b>${q.title}</b><small>${q.desc} · ${Math.min(v,q.goal)}/${q.goal} · ${got?'Награда получена':done?'Можно забрать':'В процессе'}</small><div class="bar"><i style="width:${Math.min(100,v/q.goal*100)}%"></i></div></div><div class="quest-reward">❄ +${q.reward} зим. самоцветов</div><button class="claim" data-daily-v07="${i}" ${!done||got?'disabled':''}>${got?'ПОЛУЧЕНО':done?'ЗАБРАТЬ':'В ПРОЦЕССЕ'}</button></article>`;}).join('');
+ const now=new Date(),end=new Date(now);const anchor=state.quest3DayAnchor.split('-').map(Number);const a=new Date(anchor[0],anchor[1]-1,anchor[2]);a.setDate(a.getDate()+3);end.setTime(a.getTime());let ms=Math.max(0,end-now);const h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000);const label=$('#dailyResetLabel');if(label)label.textContent=`НОВЫЕ ЗАДАНИЯ ЧЕРЕЗ ${h}Ч ${m}М`;
+};
+// Claim new 3-day tasks only after actual progress.
+document.addEventListener('click',e=>{const b=e.target.closest('[data-daily-v07]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();fcucV07RefreshCycles();const i=Number(b.dataset.dailyV07),q=fcucV07ActiveDailyDefs()[i];if(!q||state.dailyClaimed.includes(i)||(Number(state.dailyProgress[q.stat])||0)<q.goal){toast('Сначала выполни условие задания');return;}state.dailyClaimed.push(i);state.winterGems=(Number(state.winterGems)||0)+q.reward;state.eventCoins=state.winterGems;state.eventPoints=(Number(state.eventPoints)||0)+q.reward*4;fcucV06AddXP?.(15,'трёхдневное задание');save();updateWallet();renderDaily();toast(`Получено ${q.reward} зимних самоцветов`);},true);
+
+// Weekly branch now really refreshes each Monday, with its own countdown.
+const fcucV07RenderBranchBase=renderBranch;
+renderBranch=function(){fcucV07RefreshCycles();fcucV07RenderBranchBase();const head=$('#eventBranch .branch-intro');if(head){const monday=fcucV07Monday().split('-').map(Number),end=new Date(monday[0],monday[1]-1,monday[2]+7),ms=Math.max(0,end-new Date()),days=Math.floor(ms/86400000),hours=Math.floor(ms%86400000/3600000);const p=head.querySelector('p');if(p)p.textContent=`Прогресс сохраняется. Новая недельная ветка через ${days} дн. ${hours} ч.`;}};
+const fcucV07AddStatBase=addStat;
+addStat=function(key,n=1){fcucV07RefreshCycles();fcucV07AddStatBase(key,n);};
+
+// Lower event currency income from both matches and pass rewards.
+if(typeof FCUC_V06_PASS_REWARDS!=='undefined'){
+ const tokenRewards={1:5,7:8,15:12,23:15,27:18,28:20};
+ Object.entries(tokenRewards).forEach(([i,v])=>{if(FCUC_V06_PASS_REWARDS[Number(i)]&&FCUC_V06_PASS_REWARDS[Number(i)][1]==='tokens')FCUC_V06_PASS_REWARDS[Number(i)][2]=v;});
+}
+if(weeklyDefs[2]?.reward)weeklyDefs[2].reward.eventCoins=12;
+if(weeklyDefs[5]?.reward)weeklyDefs[5].reward.eventCoins=18;
+if(weeklyDefs[1]?.reward)weeklyDefs[1].reward.gems=60;
+if(weeklyDefs[4]?.reward)weeklyDefs[4].reward.gems=80;
+
+// --- Team roster: reserve <-> bench actions; reserve is never discarded. ---
+state.reserve=Array.isArray(state.reserve)?state.reserve:[];
+function fcucV07NormalizeRoster(){
+ const valid=new Set((state.players||[]).map(p=>p.id));
+ state.startingXI=(state.startingXI||[]).filter(id=>valid.has(id));
+ state.bench=[...new Set((state.bench||[]).filter(id=>valid.has(id)&&!state.startingXI.includes(id)))];
+ state.reserve=[...new Set((state.reserve||[]).filter(id=>valid.has(id)&&!state.startingXI.includes(id)&&!state.bench.includes(id)))];
+ for(const p of state.players){if(!state.startingXI.includes(p.id)&&!state.bench.includes(p.id)&&!state.reserve.includes(p.id))state.reserve.push(p.id);}
+}
+fcucV07NormalizeRoster();
+function fcucV07Demote(id){const i=state.bench.indexOf(id);if(i<0)return;if(state.reserve.length+state.bench.length+state.startingXI.length<=11){toast('Нельзя оставить клуб без полного состава');return;}state.bench.splice(i,1);if(!state.reserve.includes(id))state.reserve.push(id);save();drawSquad();renderReserve();toast(`${playerById(id).name} переведён в резерв`);}
+function fcucV07Promote(id){if(state.startingXI.includes(id)||state.bench.includes(id))return;if(state.bench.length>=7){toast('Запас заполнен. Сначала опусти кого-нибудь в резерв.');return;}state.reserve=state.reserve.filter(x=>x!==id);state.bench.push(id);save();drawSquad();renderReserve();toast(`${playerById(id).name} поднят в запас`);}
+const fcucV07DrawSquadBase=drawSquad;
+drawSquad=function(){
+ fcucV07NormalizeRoster();const pitch=$('#pitch');if(!pitch)return;pitch.querySelectorAll('.player').forEach(x=>x.remove());const positions=positionsFor(state.formation);
+ state.startingXI.forEach((id,i)=>{const p=playerById(id),xy=positions[i];if(!p||!xy)return;const eff=fcucV07EffectiveOVR(p,i);const el=document.createElement('button');el.className='player';el.type='button';el.style.left=xy[0]+'%';el.style.top=xy[1]+'%';el.innerHTML=`<i>${eff}</i><small>${fcucSafeText(p.name.split(' ').slice(-1)[0])}</small>`;el.title=`${p.name} · ${p.pos} · ${eff} OVR${eff<p.ovr?` (−${p.ovr-eff} вне позиции)`:''}`;el.addEventListener('click',()=>selectSquadPlayer(i));pitch.append(el);});
+ if($('#formationLabel'))$('#formationLabel').textContent=state.formation;
+ const bench=$('#benchList');if(bench)bench.innerHTML=state.bench.map(id=>{const p=playerById(id);return `<div class="bench-row" draggable="true" data-roster-drag="${id}"><button class="bench-player" data-bench="${id}"><b>${p.ovr}</b> ${fcucSafeText(p.pos)} · ${fcucSafeText(p.name)}</button><button class="mini-action" data-demote="${id}" title="Перевести в резерв">В РЕЗЕРВ</button><button class="mini-action sell" data-sell="${id}">ПРОДАТЬ</button></div>`;}).join('')||'<span>Запасных пока нет</span>';
+ if($('#squadOVR'))$('#squadOVR').textContent=fcucV07TeamRating();renderReserve();updateOverall();
+};
+const fcucV07RenderReserveBase=renderReserve;
+renderReserve=function(){fcucV07NormalizeRoster();const box=$('#reserveList');if(!box)return;const reserve=state.reserve.map(playerById).filter(Boolean);box.innerHTML=reserve.map(p=>`<div class="reserve-row" draggable="true" data-roster-drag="${p.id}"><span><b>${p.ovr}</b> ${fcucSafeText(p.pos)} · ${fcucSafeText(fcucV07DisplayName(p.name))}</span><span><button class="mini-action" data-promote="${p.id}">В ЗАПАС</button><button class="mini-action sell" data-sell="${p.id}">ПРОДАТЬ</button></span></div>`).join('')||'<p class="muted">Резерв пока пуст. Игроки будут перемещаться сюда, а не исчезать.</p>';const count=$('#rosterCount');if(count)count.textContent=state.players.length;const status=$('#exchangeRosterStatus');if(status)status.textContent=`Игроков в клубе: ${state.players.length}/18`;renderExchangeOptions();};
+// Cyrillic display for Latin-script names in reserve; source names remain unchanged in save/database.
+function fcucV07DisplayName(s){const map={'a':'а','b':'б','c':'к','d':'д','e':'е','f':'ф','g':'г','h':'х','i':'и','j':'дж','k':'к','l':'л','m':'м','n':'н','o':'о','p':'п','q':'к','r':'р','s':'с','t':'т','u':'у','v':'в','w':'в','x':'кс','y':'й','z':'з','á':'а','é':'е','í':'и','ó':'о','ú':'у','ñ':'нь','ç':'с','ø':'ё','æ':'э'};return String(s||'').replace(/[A-Za-zÁÉÍÓÚÑÇØÆáéíóúñçøæ]/g,ch=>map[ch.toLowerCase()]||ch);}
+// Re-render only after safe roster state transitions.
+document.addEventListener('click',e=>{const demote=e.target.closest('[data-demote]');if(demote){e.preventDefault();e.stopImmediatePropagation();fcucV07Demote(demote.dataset.demote);return;}const promote=e.target.closest('[data-promote]');if(promote){e.preventDefault();e.stopImmediatePropagation();fcucV07Promote(promote.dataset.promote);return;}},true);
+let fcucV07Dragged=null;
+document.addEventListener('dragstart',e=>{const row=e.target.closest('[data-roster-drag]');if(!row)return;fcucV07Dragged=row.dataset.rosterDrag;e.dataTransfer?.setData('text/plain',fcucV07Dragged);});
+document.addEventListener('dragover',e=>{if(e.target.closest('#reserveList')||e.target.closest('#benchList'))e.preventDefault();});
+document.addEventListener('drop',e=>{const dest=e.target.closest('#reserveList,#benchList');if(!dest||!fcucV07Dragged)return;e.preventDefault();const id=fcucV07Dragged;fcucV07Dragged=null;if(dest.id==='reserveList'&&state.bench.includes(id))fcucV07Demote(id);else if(dest.id==='benchList'&&state.reserve.includes(id))fcucV07Promote(id);});
+
+// --- Position suitability / OVR debuff ---
+const fcucV07Roles={
+ '4-3-3':['GK','LB','CB','CB','RB','CM','CM','CAM','LW','ST','RW'],
+ '4-2-3-1':['GK','LB','CB','CB','RB','CDM','CDM','CAM','LW','RW','ST'],
+ '4-4-2':['GK','LB','CB','CB','RB','LM','CM','CM','RM','ST','ST'],
+ '3-5-2':['GK','CB','CB','CB','LWB','CM','CDM','CM','RWB','ST','ST']
+};
+function fcucV07PositionPenalty(pos,role){if(pos===role)return 0;const groups={GK:['GK'],CB:['CB'],FB:['LB','RB','LWB','RWB'],DM:['CDM'],CM:['CM'],AM:['CAM'],W:['LW','RW','LM','RM'],ST:['ST']};const group=p=>Object.keys(groups).find(k=>groups[k].includes(p));const a=group(pos),b=group(role);if(a===b)return 1;if((a==='CM'&&b==='DM')||(a==='DM'&&b==='CM')||(a==='AM'&&b==='CM')||(a==='CM'&&b==='AM')||(a==='W'&&b==='FB')||(a==='FB'&&b==='W'))return 3;if(a==='GK'||b==='GK')return 15;return 7;}
+function fcucV07EffectiveOVR(p,index){const role=(fcucV07Roles[state.formation]||fcucV07Roles['4-3-3'])[index];return Math.max(30,Number(p?.ovr||50)-fcucV07PositionPenalty(p?.pos,role));}
+function fcucV07TeamRating(){return Math.round((state.startingXI||[]).reduce((n,id,i)=>n+fcucV07EffectiveOVR(playerById(id),i),0)/Math.max(1,state.startingXI.length));}
+updateOverall=function(){const avg=fcucV07TeamRating();if($('#homeOVR'))$('#homeOVR').textContent=avg;if($('#homeOVRBar'))$('#homeOVRBar').style.width=avg+'%';if($('#squadOVR'))$('#squadOVR').textContent=avg;};
+
+// --- Market sort ---
+const sortBox=$('#marketSort');
+if(sortBox){sortBox.value=state.marketSort||'rating-desc';sortBox.addEventListener('change',()=>{state.marketSort=sortBox.value;save();renderMarket();});}
+const fcucV07RenderMarketBase=renderMarket;
+renderMarket=function(){fcucV07RenderMarketBase();const grid=$('#marketGrid');if(!grid)return;const selected=$('#marketSort')?.value||state.marketSort||'rating-desc';const cards=[...grid.querySelectorAll('.market-card')];cards.sort((a,b)=>{const get=x=>Number(x.querySelector('.card-art b')?.textContent||0);const price=x=>Number((x.querySelector('.price-row span')?.textContent||'').replace(/[^0-9]/g,''))||0;return selected==='rating-asc'?get(a)-get(b):selected==='price-asc'?price(a)-price(b):selected==='price-desc'?price(b)-price(a):get(b)-get(a);});cards.forEach(x=>grid.append(x));};
+
+// --- Opponent rotation ---
+const fcucV07Opponents=[
+ ['Northbridge FC',57],['Aurora Athletic',61],['Polar City',64],['Blue Comets',67],['Riverside United',70],['Iron Wolves',73],['Frostvale SC',76],['Glacier Town',79],['Stormhaven FC',82],['Wintergate',85]
+];
+function fcucV07SetOpponent(){const item=fcucV07Opponents[Math.floor(Math.random()*fcucV07Opponents.length)];match.opponent={name:item[0],ovr:item[1]};const spans=$$('.score span');if(spans[1])spans[1].textContent=item[0];const panel=$('.opponent');if(panel){const strong=panel.querySelector('strong'),small=panel.querySelector('small');if(strong)strong.textContent=item[0].toUpperCase();if(small)small.textContent=`Рейтинг ${item[1]} · ${item[1]>=78?'Сложный':item[1]>=68?'Средний':'Доступный'} соперник`;}}
+const fcucV07StartMatchBase=startMatch;
+startMatch=function(){if(match.active)return;fcucV07StartMatchBase();if(match.active){match.mode='normal';fcucV07SetOpponent();match.homeName=state.club?.name||'FROST UNITED';const spans=$$('.score span');if(spans[0])spans[0].textContent=match.homeName;save();}};
+const fcucV07PlayEventBase=playEventMatch;
+playEventMatch=function(){fcucV07RefreshCycles();if((Number(state.eventMatchesToday)||0)>=3){toast('Лимит зимних матчей на сегодня исчерпан: максимум 3. Новые матчи будут доступны после 00:00.');return;}if(match.active){toast('Сначала заверши текущий матч');return;}fcucV07PlayEventBase();if(match.active){match.mode='event';fcucV07SetOpponent();save();}};
+
+// Match probability now uses the effective XI rating (including off-position penalties)
+// and each opponent's strength, instead of a fixed generic opponent.
+matchTick=function(){
+ if(!match.active||match._finishing)return;
+ match.minute++;
+ const avg=fcucV07TeamRating();
+ let mod=fcucTacticGoalModifier();if(match.style==='Атака')mod+=.003;else if(match.style==='Оборона')mod-=.003;
+ const strength=Math.max(.78,Math.min(1.24,.94+(avg-60)*.006));
+ const homeChance=Math.max(.006,Math.min(.032,(.014+mod)*strength));
+ const opp=Number(match.opponent?.ovr||68);
+ const awayStyle=match.style==='Оборона'?.002:match.style==='Атака'?-.001:0;const awayChance=Math.max(.006,Math.min(.032,.009+(opp-55)*.00055+fcucTacticAwayModifier()-awayStyle));
+ if(match.home<5&&Math.random()<homeChance){match.home++;addStat('goals');matchLog('ГОЛ! '+(state.club?.name||'Клуб')+' забивает!');state.seasonXP=(Number(state.seasonXP)||0)+10;if(match.mode==='event'){state.eventPoints=(Number(state.eventPoints)||0)+10;if(state.weeklyProgress)state.weeklyProgress.eventPoints=(Number(state.weeklyProgress.eventPoints)||0)+10;}}
+ else if(match.away<5&&Math.random()<awayChance){match.away++;matchLog(`${match.opponent?.name||'Соперник'} забивает гол.`);}
+ else if(match.minute%7===0)matchLog(['Опасная атака хозяев','Удар — вратарь спасает','Подача с фланга','Перехват в центре поля','Стандарт у ворот соперника'][Math.floor(Math.random()*5)]);
+ renderMatchSetup();if($('#matchTimeline'))$('#matchTimeline').style.width=(match.minute/90*100)+'%';
+ if(match.minute>=90)finishMatch();save();
+};
+
+// --- Reliable match finish / skip controls, including mobile tap ---
+const fcucV07FinishBase=finishMatch;
+finishMatch=function(){if(!match?.active||match._finishing||match._finished)return;match._finishing=true;try{const isEvent=match.mode==='event',won=match.home>match.away,beforeTokens=Number(state.eventTokens)||0,beforeWinter=Number(state.winterGems)||0;fcucV07FinishBase();state.dailyProgress=state.dailyProgress||{matches:0,goals:0,wins:0};state.branchProgress=state.branchProgress||{matches:0,goals:0,wins:0,packs:0};state.dailyProgress.matches=(Number(state.dailyProgress.matches)||0)+1;state.branchProgress.matches=(Number(state.branchProgress.matches)||0)+1;if(won){state.dailyProgress.wins=(Number(state.dailyProgress.wins)||0)+1;state.branchProgress.wins=(Number(state.branchProgress.wins)||0)+1;}if(isEvent){state.eventTokens=beforeTokens+(won?10:match.home===match.away?7:5);state.winterGems=beforeWinter+(won?2:1);state.eventCoins=state.winterGems;state.eventMatchesToday=(Number(state.eventMatchesToday)||0)+1;state.eventMatchDate=fcucV07DateKey();const b=$('#eventMatchPlay');if(b){const left=Math.max(0,3-state.eventMatchesToday);b.disabled=left===0;b.textContent=left===0?'ЛИМИТ НА СЕГОДНЯ ИСЧЕРПАН':`НАЧАТЬ ЗИМНИЙ МАТЧ · ${left}/3 ОСТАЛОСЬ`;}}save();updateWallet();renderDaily();renderBranch();renderEventMode();}finally{match._finished=true;match._finishing=false;}};
+function fcucV07SkipMatch(){if(!match.active)startMatch();if(!match.active)return;clearInterval(match.timer);match.timer=null;let guard=0;while(match.active&&match.minute<90&&guard++<91){matchTick();}if(match.active){match.minute=90;renderMatchSetup();if($('#matchTimeline'))$('#matchTimeline').style.width='100%';finishMatch();}else{renderMatchSetup();}}
+document.addEventListener('click',e=>{const skip=e.target.closest('#matchSkip');if(skip){e.preventDefault();e.stopImmediatePropagation();fcucV07SkipMatch();return;}const end=e.target.closest('#matchEnd');if(end){e.preventDefault();e.stopImmediatePropagation();if(match.active)finishMatch();else toast('Матч уже завершён');return;}},true);
+// Repaint the match controls and timeline consistently after visibility changes.
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&match.active){renderMatchSetup();if($('#matchTimeline'))$('#matchTimeline').style.width=(match.minute/90*100)+'%';}});
+
+// Event match daily limit status at page open.
+const fcucV07NavigateBase=navigate;
+navigate=function(page){fcucV07NavigateBase(page);if(page==='event'){fcucV07RefreshCycles();const b=$('#eventMatchPlay');if(b){const left=Math.max(0,3-(Number(state.eventMatchesToday)||0));b.disabled=left===0;b.textContent=left===0?'ЛИМИТ НА СЕГОДНЯ ИСЧЕРПАН':`НАЧАТЬ ЗИМНИЙ МАТЧ · ${left}/3 ОСТАЛОСЬ`;}}if(page==='match'){const f=$('#matchFormation');if(f)f.value=state.formation;const s=$('#matchStyle');if(s)s.value=state.style;}};
+
+// --- Gentle original winter bell music (no external copyrighted track) ---
+let fcucV07Audio=null,fcucV07MusicTimer=null,fcucV07Note=0;
+const fcucV07Melody=[659.25,783.99,987.77,783.99,698.46,880,1046.5,880,659.25,783.99,880,783.99,587.33,698.46,783.99,698.46];
+function fcucV07MusicStop(){if(fcucV07MusicTimer){clearTimeout(fcucV07MusicTimer);fcucV07MusicTimer=null;}if(fcucV07Audio){try{fcucV07Audio.close();}catch(e){}fcucV07Audio=null;}}
+function fcucV07MusicStep(){if(!fcucV07Audio||!state.musicEnabled)return;const ctx=fcucV07Audio,now=ctx.currentTime,f=fcucV07Melody[fcucV07Note++%fcucV07Melody.length];const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=f;gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.035,now+.025);gain.gain.exponentialRampToValueAtTime(.0001,now+.72);osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+.75);fcucV07MusicTimer=setTimeout(fcucV07MusicStep,560);}
+function fcucV07MusicStart(){const AC=window.AudioContext||window.webkitAudioContext;if(!AC){toast('Браузер не поддерживает фоновую музыку');return;}if(!fcucV07Audio)fcucV07Audio=new AC();if(fcucV07Audio.state==='suspended')fcucV07Audio.resume();state.musicEnabled=true;save();fcucV07MusicStep();const b=$('#musicToggle');if(b)b.textContent='♫ НОВОГОДНЯЯ МУЗЫКА: ВКЛ';}
+function fcucV07MusicToggle(){if(state.musicEnabled){state.musicEnabled=false;fcucV07MusicStop();save();const b=$('#musicToggle');if(b)b.textContent='♫ НОВОГОДНЯЯ МУЗЫКА: ВЫКЛ';}else fcucV07MusicStart();}
+$('#musicToggle')?.addEventListener('click',fcucV07MusicToggle);
+if($('#musicToggle'))$('#musicToggle').textContent=state.musicEnabled?'♫ НОВОГОДНЯЯ МУЗЫКА: ВКЛ':'♫ НОВОГОДНЯЯ МУЗЫКА: ВЫКЛ';
+
+// --- Extra club identity settings ---
+state.club=state.club||{};state.club.stadium=state.club.stadium||'Winter Arena';state.club.motto=state.club.motto||'ONE CLUB · ONE DREAM';
+const clubSettings=$('#clubExtraSettings');if(clubSettings){clubSettings.innerHTML=`<label for="clubStadiumInput">СТАДИОН</label><input id="clubStadiumInput" maxlength="32" value="${fcucSafeText(state.club.stadium)}" placeholder="Название стадиона"><label for="clubMottoInput">ДЕВИЗ КЛУБА</label><input id="clubMottoInput" maxlength="42" value="${fcucSafeText(state.club.motto)}" placeholder="Девиз клуба">`;}
+const saveClubV07=$('#saveClubSettings');saveClubV07?.addEventListener('click',()=>{state.club.stadium=($('#clubStadiumInput')?.value||'Winter Arena').trim().slice(0,32);state.club.motto=($('#clubMottoInput')?.value||'ONE CLUB · ONE DREAM').trim().slice(0,42);save();toast('Стадион и девиз клуба сохранены');});
+
+// Full reset must remove both current and legacy save keys, otherwise an old
+// migration could silently restore the career after the user deletes it.
+const fcucV07ResetHandler=e=>{if(!e.target.closest('#resetSave,#resetSaveSettings'))return;e.preventDefault();e.stopImmediatePropagation();if(!confirm('Полностью удалить карьеру, валюты, состав и все настройки? Это действие нельзя отменить.'))return;try{localStorage.removeItem(STORE_KEY);localStorage.removeItem(FCUC_V06_OLD_SAVE_KEY);localStorage.removeItem('fcuc_winter_save_v4');localStorage.removeItem('fcuc_winter_save_v3');}catch(err){}location.reload();};document.addEventListener('click',fcucV07ResetHandler,true);
+
+// Keep the chosen formation/style in sync between squad and match screens.
+$('#formation')?.addEventListener('change',e=>{state.formation=e.target.value;if($('#matchFormation'))$('#matchFormation').value=state.formation;save();drawSquad();updateOverall();});
+$('#matchFormation')?.addEventListener('change',e=>{state.formation=e.target.value;if($('#formation'))$('#formation').value=state.formation;match.formation=state.formation;save();drawSquad();updateOverall();if(match.active)matchLog(`Схема изменена: ${state.formation}`);});
+$('#matchStyle')?.addEventListener('change',e=>{state.style=e.target.value;match.style=state.style;$$('.styles button').forEach(b=>b.classList.toggle('selected',b.textContent.trim()===state.style));save();});
+$$('.styles button').forEach(b=>b.addEventListener('click',()=>{if($('#matchStyle'))$('#matchStyle').value=state.style;}));
+
+// Persist and restore quest cycles, counters and event match limit safely.
+state.quest3DayAnchor=state.quest3DayAnchor||state.dailyDate||fcucV07DateKey();state.eventMatchDate=state.eventMatchDate||fcucV07DateKey();state.eventMatchesToday=Number(state.eventMatchesToday)||0;state.musicEnabled=false;state.marketSort=state.marketSort||'rating-desc';
+fcucV07RefreshCycles();
+const oldTimer=setInterval(()=>{fcucV07RefreshCycles();renderDaily();renderBranch();fcucV07UpdateCountdowns();},30000);
+renderDaily();renderBranch();fcucV07UpdateCountdowns();renderEventMode();renderMarket();drawSquad();updateOverall();updateWallet();save();
+})();
