@@ -235,3 +235,37 @@ body[data-theme="cozy"] .season-progress>div:first-child small{color:#f0eadc}
 @media(max-width:560px){#marketSort{flex:1 1 100%;width:100%}.bench-row,.reserve-row{gap:6px}.bench-row .mini-action,.reserve-row .mini-action{min-height:34px;padding:8px 7px}.actions button{touch-action:manipulation}.match-layout button{min-height:38px}}
 
 #resetSaveSettings{margin-top:8px;border-color:#9a5260;color:#ffb4bd}
+
+
+/* v0.8 football presentation */
+.squad-auto-actions{display:flex;gap:10px;margin-top:12px}
+.squad-auto-actions .primary{width:100%;letter-spacing:.06em}
+#autoSubsRating{border-color:rgba(110,205,255,.35);color:#bdeaff}
+#eventPathRewards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+#eventPathRewards .reward{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;padding:12px;text-align:center}
+#eventPathRewards .reward span{font-size:11px;line-height:1.3;color:var(--muted,#aab6c4)}
+#eventPathRewards .reward small{font-size:10px;opacity:.75}
+#eventPathRewards .reward.locked{opacity:.48;filter:saturate(.45)}
+#eventPathRewards .reward button{width:100%;font-size:10px;padding:8px 5px}
+.wallet>div{min-width:70px}
+.squad-auto-actions .primary,#autoSubsRating{min-height:42px}
+@media(max-width:760px){
+ #eventPathRewards{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #eventPathRewards .reward:last-child{grid-column:1/-1}
+ .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ #autoSubsRating{grid-column:1/-1}
+ .wallet>div{min-width:54px}
+}
+
+/* v0.9 Winter + New Year event */
+#matchEnd,#matchSkip{display:none!important}
+#matchSpeed{font-weight:900;letter-spacing:.08em;border-color:rgba(120,205,255,.55);color:#c8efff;min-width:120px}
+.winter-guarantee-track{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:12px 0 26px}
+.winter-guarantee-card{background:rgba(18,38,57,.78);border:1px solid rgba(130,210,255,.2);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;min-height:145px}
+.winter-guarantee-card strong{font-size:26px;color:#c8efff}.winter-guarantee-card small{color:var(--muted,#aab6c4)}.winter-guarantee-card button{margin-top:auto}.winter-guarantee-card.locked{opacity:.55}.winter-guarantee-card.claimed{border-color:#8bd5b2}
+.newyear-entry{display:grid;grid-template-columns:1fr auto;gap:8px 16px;align-items:center;margin:24px 0;padding:20px;border:1px solid rgba(230,80,90,.35);background:linear-gradient(110deg,rgba(126,25,42,.32),rgba(22,90,58,.25))}.newyear-entry h2{margin:4px 0}.newyear-entry p{margin:4px 0;color:var(--muted,#aab6c4)}.newyear-entry #newYearLockLabel{grid-column:2;text-align:center}
+.newyear-hero{position:relative;overflow:hidden;padding:28px;border-radius:22px;background:radial-gradient(circle at 85% 10%,rgba(255,220,80,.2),transparent 28%),linear-gradient(130deg,#8f182d,#1a6c43 75%);border:1px solid rgba(255,255,255,.16);color:#fff;margin-bottom:26px}.newyear-hero h1{font-size:clamp(52px,10vw,92px);line-height:.9;margin:12px 0;font-weight:900;letter-spacing:.04em}.newyear-hero h1 em{font-style:normal;color:#ffe36c}.newyear-hero p{max-width:620px;color:#f4e9e9}.newyear-tree{position:absolute;right:8%;top:12px;font-size:clamp(72px,14vw,150px);filter:drop-shadow(0 12px 18px rgba(0,0,0,.25))}.newyear-wallet{display:inline-flex;gap:8px;align-items:center;padding:10px 14px;border-radius:12px;background:rgba(0,0,0,.22);margin:12px 0 18px;font-weight:800}.newyear-hero .outline{display:block;color:#fff;border-color:rgba(255,255,255,.55)}
+.newyear-gift-timeline{display:grid;gap:12px;position:relative;margin:12px 0 28px}.newyear-gift{display:grid;grid-template-columns:90px 1fr auto;align-items:center;gap:14px;padding:14px;border-radius:16px;background:rgba(25,35,47,.82);border:1px solid rgba(255,255,255,.1)}.newyear-gift-date{font-weight:900;color:#ffe17b;font-size:18px}.newyear-gift-box{font-size:32px}.newyear-gift button{min-width:140px}.newyear-gift.locked{opacity:.56}.newyear-gift.claimed{border-color:#70c99a}.gift-open{animation:giftPop .55s ease both}@keyframes giftPop{0%{transform:scale(.9) rotate(-4deg);opacity:.5}60%{transform:scale(1.04) rotate(2deg)}100%{transform:scale(1);opacity:1}}
+.newyear-weekly{padding:16px}.newyear-weekly .quest{margin:8px 0}.newyear-weekly .weekly-bonus{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)}.newyear-shop-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.newyear-shop-grid .panel{padding:18px}.gift-icon{font-size:38px}.newyear-card-preview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.newyear-card{padding:16px;border-radius:16px;background:linear-gradient(145deg,#8b1c31,#123d38);border:1px solid rgba(255,255,255,.18);color:white;min-height:145px;display:flex;flex-direction:column;justify-content:space-between}.newyear-card:nth-child(2){background:linear-gradient(145deg,#1e4f87,#172c4b)}.newyear-card:nth-child(3){background:linear-gradient(145deg,#ad7d24,#6b2a35)}.newyear-card b{font-size:34px}.newyear-card small{opacity:.85}
+body.newyear-theme{background:#10291f}body.newyear-theme .shell{background:linear-gradient(135deg,rgba(105,20,38,.2),rgba(18,87,49,.16))}body.newyear-theme .sidebar{border-color:rgba(230,70,85,.3)}body.newyear-theme .brand b{color:#f4d85e}body.newyear-theme .nav.active{background:linear-gradient(90deg,rgba(160,30,50,.45),rgba(30,125,70,.3))}
+@media(max-width:760px){.winter-guarantee-track{grid-template-columns:repeat(2,minmax(0,1fr))}.winter-guarantee-card:last-child{grid-column:1/-1}.newyear-entry{grid-template-columns:1fr}.newyear-entry #newYearLockLabel{grid-column:1;text-align:left}.newyear-tree{right:4%;top:18px;font-size:72px;opacity:.75}.newyear-gift{grid-template-columns:54px 1fr;gap:8px}.newyear-gift-date{font-size:15px}.newyear-gift button{grid-column:1/-1;width:100%}.newyear-shop-grid,.newyear-card-preview{grid-template-columns:1fr}}

@@ -360,7 +360,7 @@ function fcucTacticAwayModifier(){
 document.addEventListener('click',e=>{
  const buy=e.target.closest('[data-buy-v4]');if(buy){e.preventDefault();e.stopImmediatePropagation();const p=state.market.find(x=>x.id===buy.dataset.buyV4);if(!p)return;if(fcucOwned(p.name)){toast('Этот игрок уже есть в клубе');return;}if(state.coins<p.price){toast('Недостаточно монет');return;}state.coins-=p.price;const owned={...p,id:fcucId('transfer'),price:0};state.players.push(owned);if(state.bench.length<7)state.bench.push(owned.id);state.stats.buys=(state.stats.buys||0)+1;state.weeklyProgress.buys=(state.weeklyProgress.buys||0)+1;if(typeof fcucV06AddXP==='function')fcucV06AddXP(10,'трансфер');save();updateWallet();drawSquad();renderReserve();renderMarket();renderAll();modal('ТРАНСФЕР ЗАВЕРШЁН',`${p.name} подписан за ${fmt(p.price)} монет и добавлен в клуб.`);return;}
  const eb=e.target.closest('[data-event-buy]');if(eb){e.preventDefault();e.stopImmediatePropagation();fcucBuyEventCard(eb.dataset.eventBuy,+eb.dataset.cost);return;}
- const winterPack=e.target.closest('.winter-pack-buy');if(winterPack){e.preventDefault();e.stopImmediatePropagation();const cost=Number(winterPack.dataset.winterCost||30);if((state.winterGems||0)<cost){toast('Недостаточно зимних самоцветов');return;}const pool=FCUC_EVENT_DB.filter(p=>!fcucOwned(p.name));if(!pool.length){toast('Все карточки зимнего события уже собраны');return;}const p=pool[Math.floor(Math.random()*pool.length)];state.winterGems-=cost;state.eventCoins=state.winterGems;const ok=fcucAddPlayerToPool(p);if(ok){state.stats.packs=(state.stats.packs||0)+1;state.weeklyProgress.packs=(state.weeklyProgress.packs||0)+1;if(typeof fcucV06AddXP==='function')fcucV06AddXP(10,'зимний набор');}if(!ok){state.winterGems+=cost;return;}save();updateWallet();renderAll();renderEventMode();modal('ЗИМНИЙ НАБОР ОТКРЫТ',`${p.name} · ${p.ovr} OVR. Карточка события добавлена в клуб.`,fcucCardHTML(p));return;}
+ const winterPack=e.target.closest('.winter-pack-buy');if(winterPack){e.preventDefault();e.stopImmediatePropagation();const cost=Number(winterPack.dataset.winterCost||30);if((state.winterGems||0)<cost){toast('Недостаточно зимних самоцветов');return;}const pool=FCUC_EVENT_DB.filter(p=>p.event!=='newyear'&&!fcucOwned(p.name));if(!pool.length){toast('Все карточки зимнего события уже собраны');return;}const weighted=[];for(const x of pool){const w=x.ovr>=80?1:x.ovr>=76?3:x.ovr>=73?7:14;for(let j=0;j<w;j++)weighted.push(x);}const p=weighted[Math.floor(Math.random()*weighted.length)];state.winterGems-=cost;state.eventCoins=state.winterGems;const ok=fcucAddPlayerToPool(p);if(ok){state.stats.packs=(state.stats.packs||0)+1;state.weeklyProgress.packs=(state.weeklyProgress.packs||0)+1;if(typeof fcucV06AddXP==='function')fcucV06AddXP(10,'зимний набор');}if(!ok){state.winterGems+=cost;return;}save();updateWallet();renderAll();renderEventMode();modal('ЗИМНИЙ НАБОР ОТКРЫТ',`${p.name} · ${p.ovr} OVR. Карточка события добавлена в клуб.`,fcucCardHTML(p));return;}
  const pack=e.target.closest('.pack-buy');if(pack){e.preventDefault();e.stopImmediatePropagation();fcucOpenPack(+pack.dataset.cost,pack.dataset.type||'standard');return;}
  const promote=e.target.closest('[data-promote]');if(promote){e.preventDefault();e.stopImmediatePropagation();let id=promote.dataset.promote;if(state.bench.length>=7){toast('Запас заполнен. Освободи место.');return;}state.reserve=(state.reserve||[]).filter(x=>x!==id);state.bench.push(id);drawSquad();renderReserve();save();return;}
  const sell=e.target.closest('[data-sell]');if(sell){e.preventDefault();e.stopImmediatePropagation();fcucSellPlayer(sell.dataset.sell);return;}
@@ -832,4 +832,692 @@ state.quest3DayAnchor=state.quest3DayAnchor||state.dailyDate||fcucV07DateKey();s
 fcucV07RefreshCycles();
 const oldTimer=setInterval(()=>{fcucV07RefreshCycles();renderDaily();renderBranch();fcucV07UpdateCountdowns();},30000);
 renderDaily();renderBranch();fcucV07UpdateCountdowns();renderEventMode();renderMarket();drawSquad();updateOverall();updateWallet();save();
+// Share v0.7 helpers with the following version layers (each is isolated in an IIFE).
+Object.assign(window,{fcucV07DateKey,fcucV07DayNumber,fcucV07Monday,fcucV07RefreshCycles,fcucV07UpdateCountdowns,fcucV07NormalizeRoster,fcucV07PositionPenalty,fcucV07EffectiveOVR,fcucV07Roles,fcucV07MusicStart,fcucV07MusicStep,fcucV07MusicStop});
+})();
+
+
+/* ================= FC ULTIMATE CLUB v0.8 =================
+   Rating-based squad selection, automatic substitutions, English player
+   names, weekly rotating objectives, event path rewards and audio options.
+*/
+(function(){
+'use strict';
+
+// All player names are shown in Latin/English script, including the club,
+// transfer market, event cards, bench and reserve. Source data is preserved
+// in the user's own files; the in-game copy is normalized once on load.
+function fcucV08LatinName(value){
+ const map={
+ 'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y',
+ 'к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f',
+ 'х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+ 'і':'i','ї':'yi','є':'ye','ґ':'g'
+ };
+ return String(value??'').replace(/[А-Яа-яЁёІіЇїЄєҐґ]/g,ch=>{
+  const latin=map[ch.toLowerCase()]||ch;
+  return ch===ch.toUpperCase()?latin.charAt(0).toUpperCase()+latin.slice(1):latin;
+ });
+}
+function fcucV08Englishize(list){
+ if(!Array.isArray(list))return;
+ for(const p of list)if(p&&typeof p.name==='string')p.name=fcucV08LatinName(p.name);
+}
+fcucV08Englishize(state.players);
+fcucV08Englishize(state.market);
+fcucV08Englishize(defaultPlayers);
+fcucV08Englishize(marketSeed);
+if(typeof FCUC_PLAYER_DB!=='undefined')fcucV08Englishize(FCUC_PLAYER_DB);
+
+if(typeof FCUC_EVENT_DB!=='undefined')fcucV08Englishize(FCUC_EVENT_DB);
+// The previous build transliterated Latin names back into Cyrillic in the
+// reserve panel. Override that renderer so every roster area stays English.
+renderReserve=function(){
+ fcucV07NormalizeRoster();
+ const box=$('#reserveList');if(!box)return;
+ box.innerHTML=(state.reserve||[]).map(id=>{
+  const p=playerById(id);if(!p)return '';
+  return `<div class="reserve-row" draggable="true" data-roster-drag="${p.id}"><span><b>${p.ovr}</b> ${fcucSafeText(p.pos)} · ${fcucSafeText(p.name)}</span><span><button class="mini-action" data-promote="${p.id}">В ЗАПАС</button><button class="mini-action sell" data-sell="${p.id}">ПРОДАТЬ</button></span></div>`;
+ }).join('')||'<p class="muted">Reserve is empty.</p>';
+ const count=$('#rosterCount');if(count)count.textContent=state.players.length;
+ const status=$('#exchangeRosterStatus');if(status)status.textContent=`Players in club: ${state.players.length}/18`;
+ renderExchangeOptions();
+};
+const fcucV08RenderMarketBase=renderMarket;
+renderMarket=function(){fcucV08Englishize(state.market);fcucV08RenderMarketBase();};
+
+// Rotating weekly missions. A stable week key picks a different set each
+// Monday, while the ordinary currency rewards stay separate from event tokens.
+const fcucV08WeeklySets=[
+ [
+  {title:'Матчевый ритм',desc:'Заверши пять матчей',stat:'matches',goal:5,reward:{coins:18000}},
+  {title:'Хладнокровный бомбардир',desc:'Забей восемь голов',stat:'goals',goal:8,reward:{gems:12}},
+  {title:'Победная серия',desc:'Выиграй три матча',stat:'wins',goal:3,reward:{coins:22000}},
+  {title:'Новое подписание',desc:'Подпиши одного игрока',stat:'buys',goal:1,reward:{coins:12000}},
+  {title:'Открытие наборов',desc:'Открой два набора',stat:'packs',goal:2,reward:{gems:15}}
+ ],
+ [
+  {title:'Лиговая кампания',desc:'Заверши семь матчей',stat:'matches',goal:7,reward:{coins:24000}},
+  {title:'Голевая машина',desc:'Забей десять голов',stat:'goals',goal:10,reward:{gems:18}},
+  {title:'Три очка',desc:'Выиграй четыре матча',stat:'wins',goal:4,reward:{coins:26000}},
+  {title:'Трансферная работа',desc:'Подпиши двух игроков',stat:'buys',goal:2,reward:{coins:18000}},
+  {title:'День скаутинга',desc:'Открой три набора',stat:'packs',goal:3,reward:{gems:20}}
+ ],
+ [
+  {title:'Плотный календарь',desc:'Заверши четыре матча',stat:'matches',goal:4,reward:{coins:15000}},
+  {title:'В девятку',desc:'Забей шесть голов',stat:'goals',goal:6,reward:{gems:14}},
+  {title:'Несгибаемый дух',desc:'Выиграй два матча',stat:'wins',goal:2,reward:{coins:17000}},
+  {title:'Строитель клуба',desc:'Подпиши одного игрока',stat:'buys',goal:1,reward:{gems:10}},
+  {title:'Скаут академии',desc:'Открой один набор',stat:'packs',goal:1,reward:{coins:10000}}
+ ],
+ [
+  {title:'Полный календарь',desc:'Заверши восемь матчей',stat:'matches',goal:8,reward:{coins:28000}},
+  {title:'Сила атаки',desc:'Забей двенадцать голов',stat:'goals',goal:12,reward:{gems:22}},
+  {title:'Неделя побед',desc:'Выиграй пять матчей',stat:'wins',goal:5,reward:{coins:30000}},
+  {title:'Мастер рынка',desc:'Подпиши двух игроков',stat:'buys',goal:2,reward:{gems:18}},
+  {title:'Коллекционер наборов',desc:'Открой четыре набора',stat:'packs',goal:4,reward:{coins:22000}}
+ ],
+ [
+  {title:'Путь к славе',desc:'Заверши шесть матчей',stat:'matches',goal:6,reward:{coins:21000}},
+  {title:'Меткий форвард',desc:'Забей девять голов',stat:'goals',goal:9,reward:{gems:16}},
+  {title:'Большие результаты',desc:'Выиграй четыре матча',stat:'wins',goal:4,reward:{coins:24000}},
+  {title:'Свежий талант',desc:'Подпиши одного игрока',stat:'buys',goal:1,reward:{coins:14000}},
+  {title:'Открой коробку',desc:'Открой два набора',stat:'packs',goal:2,reward:{gems:16}}
+ ],
+ [
+  {title:'Вызов сезона',desc:'Заверши девять матчей',stat:'matches',goal:9,reward:{coins:32000}},
+  {title:'Гонка за золотой бутсой',desc:'Забей четырнадцать голов',stat:'goals',goal:14,reward:{gems:25}},
+  {title:'Менталитет чемпиона',desc:'Выиграй пять матчей',stat:'wins',goal:5,reward:{coins:32000}},
+  {title:'Трансферное окно',desc:'Подпиши трёх игроков',stat:'buys',goal:3,reward:{coins:24000}},
+  {title:'Специалист по наборам',desc:'Открой три набора',stat:'packs',goal:3,reward:{gems:22}}
+ ]
+];
+const fcucV08BranchSets=[
+ [
+  {title:'Первый свисток',desc:'Заверши четыре матча',stat:'matches',goal:4},
+  {title:'Создатель голов',desc:'Забей семь голов',stat:'goals',goal:7},
+  {title:'Победный характер',desc:'Выиграй три матча',stat:'wins',goal:3},
+  {title:'Скаутская работа',desc:'Открой один набор',stat:'packs',goal:1}
+ ],
+ [
+  {title:'Игровой ритм',desc:'Заверши шесть матчей',stat:'matches',goal:6},
+  {title:'Точный удар',desc:'Забей девять голов',stat:'goals',goal:9},
+  {title:'Сильная концовка',desc:'Выиграй четыре матча',stat:'wins',goal:4},
+  {title:'Новые лица',desc:'Открой два набора',stat:'packs',goal:2}
+ ],
+ [
+  {title:'Зимний календарь',desc:'Заверши три матча',stat:'matches',goal:3},
+  {title:'Ледяное хладнокровие',desc:'Забей пять голов',stat:'goals',goal:5},
+  {title:'Три победы',desc:'Выиграй три матча',stat:'wins',goal:3},
+  {title:'Подбор мяча',desc:'Открой два набора',stat:'packs',goal:2}
+ ],
+ [
+  {title:'Насыщенная неделя',desc:'Заверши семь матчей',stat:'matches',goal:7},
+  {title:'Атакующая мощь',desc:'Забей одиннадцать голов',stat:'goals',goal:11},
+  {title:'На пьедестал',desc:'Выиграй пять матчей',stat:'wins',goal:5},
+  {title:'Охотник за наборами',desc:'Открой три набора',stat:'packs',goal:3}
+ ],
+ [
+  {title:'Продолжай играть',desc:'Заверши пять матчей',stat:'matches',goal:5},
+  {title:'Голевая неделя',desc:'Забей восемь голов',stat:'goals',goal:8},
+  {title:'Путь побед',desc:'Выиграй два матча',stat:'wins',goal:2},
+  {title:'Умный выбор',desc:'Открой один набор',stat:'packs',goal:1}
+ ],
+ [
+  {title:'Зимний марафон',desc:'Заверши восемь матчей',stat:'matches',goal:8},
+  {title:'Голевая феерия',desc:'Забей тринадцать голов',stat:'goals',goal:13},
+  {title:'Не остановить',desc:'Выиграй пять матчей',stat:'wins',goal:5},
+  {title:'Активный набор',desc:'Открой четыре набора',stat:'packs',goal:4}
+ ]
+];
+function fcucV08WeekIndex(){
+ const key=state.weekStart||fcucV07Monday();
+ const [y,m,d]=key.split('-').map(Number);
+ return Math.floor(fcucV07DayNumber(key)/7)%fcucV08WeeklySets.length;
+}
+let fcucV08ActiveRenderedKey=null;
+function fcucV08ApplyWeeklySet(){
+ const key=state.weekStart||fcucV07Monday();
+ if(fcucV08ActiveRenderedKey===key)return;
+ const changed=state.weeklyQuestSetKey!==key;
+ const index=fcucV08WeekIndex();
+ weeklyDefs.splice(0,weeklyDefs.length,...fcucV08WeeklySets[index].map(q=>({...q,reward:{...q.reward}})));
+ branchDefs.splice(0,branchDefs.length,...fcucV08BranchSets[index].map(q=>({...q})));
+ state.weeklyQuestSetKey=key;
+ fcucV08ActiveRenderedKey=key;
+ if(!state.weeklyProgress)state.weeklyProgress={};
+ if(!state.weeklyClaimed)state.weeklyClaimed=[];
+ if(!state.branchProgress)state.branchProgress={};
+ if(changed)save();
+}
+const fcucV08RefreshBase=fcucV07RefreshCycles;
+fcucV07RefreshCycles=function(){
+ const before=state.weekStart;
+ fcucV08RefreshBase();
+ if(before!==state.weekStart)state.weeklyQuestSetKey=null;
+ fcucV08ApplyWeeklySet();
+};
+fcucV08ApplyWeeklySet();
+
+// Event path: first two rewards are always open; later milestones unlock from
+// event points. Event tokens are only spent in the event player market.
+const fcucV08PathRewards=[
+ {label:'Жетоны события',detail:'15 жетонов события',unlock:0,type:'tokens',amount:15},
+ {label:'Жетоны события',detail:'25 жетонов события',unlock:0,type:'tokens',amount:25},
+ {label:'Жетоны события',detail:'35 жетонов события',unlock:250,type:'tokens',amount:35},
+ {label:'Игрок события',detail:'Одна зимняя карточка',unlock:500,type:'player',amount:1},
+ {label:'Особый игрок',detail:'Одна карточка высокого рейтинга',unlock:1000,type:'elite',amount:1}
+];
+state.eventPathClaimed=Array.isArray(state.eventPathClaimed)?state.eventPathClaimed:[];
+function fcucV08RenderPath(){
+ const box=$('#eventPathRewards');if(!box)return;
+ const points=Number(state.eventPoints)||0;
+ box.innerHTML=fcucV08PathRewards.map((r,i)=>{
+  const claimed=state.eventPathClaimed.includes(i);
+  const open=i<2||points>=r.unlock;
+  return `<article class="reward ${claimed?'done':open?'current':'locked'}"><small>${i+1}</small><b>${r.unlock?`${r.unlock} ОЧКОВ`:'ОТКРЫТО'}</b><span>${r.detail}</span><button class="claim" data-event-path="${i}" ${claimed||!open?'disabled':''}>${claimed?'ПОЛУЧЕНО':open?'ЗАБРАТЬ':'ЗАКРЫТО'}</button></article>`;
+ }).join('');
+}
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-event-path]');if(!b)return;
+ e.preventDefault();e.stopImmediatePropagation();
+ const i=Number(b.dataset.eventPath),r=fcucV08PathRewards[i];
+ if(!r||state.eventPathClaimed.includes(i)||(i>=2&&(Number(state.eventPoints)||0)<r.unlock))return;
+ if(r.type==='tokens')state.eventTokens=(Number(state.eventTokens)||0)+r.amount;
+ else{
+  let pool=(FCUC_EVENT_DB||[]).filter(p=>!fcucOwned(p.name));
+  if(r.type==='elite')pool=pool.filter(p=>Number(p.ovr)>=77);
+  if(!pool.length){state.eventTokens=(Number(state.eventTokens)||0)+50;toast('Все карточки собраны — вместо игрока начислено 50 жетонов события.');}
+  else{
+   const p=pool[Math.floor(Math.random()*pool.length)];
+   if(!fcucAddToClub(p,'event-path'))return;
+  }
+ }
+ state.eventPathClaimed.push(i);save();updateWallet();fcucV08RenderPath();renderEventMode();drawSquad();renderReserve();
+ toast('Награда Зимнего пути получена!');
+},true);
+const fcucV08RenderEventBase=renderEventMode;
+renderEventMode=function(){fcucV08RenderEventBase();fcucV08RenderPath();};
+
+// Rating-first XI selection: best available player for every role, no duplicate
+// cards, with the existing positional penalty included in the score.
+function fcucV08AutoPick(){
+ fcucV07NormalizeRoster();
+ const all=[...new Set((state.players||[]).map(p=>p.id))];
+ if(all.length<11){toast('Нужно минимум 11 игроков в клубе');return;}
+ const roles=fcucV07Roles[state.formation]||fcucV07Roles['4-3-3'];
+ const remaining=new Set(all),xi=[];
+ roles.forEach((role,index)=>{
+  let best=null,bestScore=-Infinity;
+  for(const id of remaining){
+   const p=playerById(id);
+   const score=Number(p.ovr||50)-fcucV07PositionPenalty(p.pos,role);
+   if(score>bestScore){bestScore=score;best=id;}
+  }
+  if(best){xi.push(best);remaining.delete(best);}
+ });
+ state.startingXI=xi;
+ const left=[...remaining].sort((a,b)=>Number(playerById(b).ovr||0)-Number(playerById(a).ovr||0));
+ state.bench=left.slice(0,7);
+ state.reserve=left.slice(7);
+ save();drawSquad();renderReserve();updateOverall();
+ toast('Автоподбор готов: лучшие игроки выставлены по позициям.');
+}
+function fcucV08AutoSubs(){
+ if(!match?.active){toast('Сначала начни матч');return;}
+ let made=0;
+ while(made<5){
+  let best=null,bestGain=0;
+  for(let bi=0;bi<state.bench.length;bi++){
+   const sub=playerById(state.bench[bi]);
+   for(let si=0;si<state.startingXI.length;si++){
+    const starter=playerById(state.startingXI[si]);
+    const gain=fcucV07EffectiveOVR(sub,si)-fcucV07EffectiveOVR(starter,si);
+    if(gain>bestGain){bestGain=gain;best={bi,si,subId:sub.id,starterId:starter.id};}
+   }
+  }
+  if(!best)break;
+  state.bench[best.bi]=best.starterId;
+  state.startingXI[best.si]=best.subId;
+  made++;
+ }
+ save();drawSquad();renderReserve();updateOverall();
+ if(made)matchLog(`Автозамены по рейтингу: выполнено ${made}/5.`);
+ toast(made?`Автоматически выполнено замен: ${made}`:'На скамейке нет игроков с более высоким рейтингом.');
+}
+document.addEventListener('click',e=>{
+ if(e.target.closest('#autoPickXI')){e.preventDefault();fcucV08AutoPick();return;}
+ if(e.target.closest('#autoSubsRating')){e.preventDefault();e.stopImmediatePropagation();window.fcucV091AutoSubs?.();return;}
+},true);
+
+// Keep all currency types independent. Winter gems pay for winter packs;
+// event tokens pay only for cards in the event player market.
+state.eventTokens=Number(state.eventTokens)||0;
+state.winterGems=Number(state.winterGems??state.eventCoins??0);
+state.eventCoins=state.winterGems;
+const wallet=$('.wallet');
+if(wallet&&!$('#eventTokensTop')){
+ const item=document.createElement('div');item.innerHTML='<b>✧ <span id="eventTokensTop">0</span></b><small>ЖЕТОНЫ СОБЫТИЯ</small>';wallet.insertBefore(item,wallet.querySelector('.avatar'));
+}
+const fcucV08WalletBase=updateWallet;
+updateWallet=function(){
+ state.eventCoins=Number(state.winterGems)||0;
+ fcucV08WalletBase();
+ const el=$('#eventTokensTop');if(el)el.textContent=fmt(state.eventTokens||0);
+ const g=$('#eventGemBalance');if(g)g.textContent=fmt(state.winterGems||0);
+ const t=$('#eventTokenBalance');if(t)t.textContent=fmt(state.eventTokens||0);
+ const t2=$('#eventTokenBalance2');if(t2)t2.textContent=fmt(state.eventTokens||0);
+};
+
+// Two original selectable music styles + subtle UI click effects. No external
+// music files or copyrighted FC Mobile tracks are used.
+state.musicMode=state.musicMode||'winter';
+state.soundEffects=state.soundEffects!==false;
+const settings=$('#clubExtraSettings');
+if(settings){
+ const music=document.createElement('label');music.htmlFor='musicModeSelect';music.textContent='МУЗЫКА';
+ const select=document.createElement('select');select.id='musicModeSelect';
+ select.innerHTML='<option value="off">Выключена</option><option value="winter">Зимняя мелодия</option><option value="football">Футбольная атмосфера</option>';
+ select.value=state.musicEnabled?state.musicMode:'off';
+ settings.append(music,select);
+ const sfx=document.createElement('label');sfx.htmlFor='sfxModeSelect';sfx.textContent='ЗВУКИ ИНТЕРФЕЙСА';
+ const sfxSelect=document.createElement('select');sfxSelect.id='sfxModeSelect';
+ sfxSelect.innerHTML='<option value="on">Включены</option><option value="off">Выключены</option>';
+ sfxSelect.value=state.soundEffects?'on':'off';settings.append(sfx,sfxSelect);
+}
+function fcucV08MusicStep(){
+ if(!fcucV07Audio||!state.musicEnabled)return;
+ const ctx=fcucV07Audio,now=ctx.currentTime;
+ const winter=[659.25,783.99,987.77,783.99,698.46,880,1046.5,880,587.33,698.46,783.99,698.46];
+ const football=[392,440,523.25,659.25,587.33,523.25,440,392,349.23,440,523.25,587.33];
+ const notes=state.musicMode==='football'?football:winter;
+ const n=notes[fcucV07Note++%notes.length];
+ const osc=ctx.createOscillator(),gain=ctx.createGain();
+ osc.type=state.musicMode==='football'?'triangle':'sine';osc.frequency.value=n;
+ gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(state.musicMode==='football'?.022:.03,now+.03);gain.gain.exponentialRampToValueAtTime(.0001,now+.55);
+ osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+.58);
+ if(state.musicMode==='football'&&fcucV07Note%2===0){
+  const bass=ctx.createOscillator(),bg=ctx.createGain();bass.type='sine';bass.frequency.value=n/2;
+  bg.gain.setValueAtTime(.0001,now);bg.gain.exponentialRampToValueAtTime(.012,now+.02);bg.gain.exponentialRampToValueAtTime(.0001,now+.25);
+  bass.connect(bg);bg.connect(ctx.destination);bass.start(now);bass.stop(now+.27);
+ }
+ fcucV07MusicTimer=setTimeout(fcucV08MusicStep,state.musicMode==='football'?430:590);
+}
+fcucV07MusicStep=fcucV08MusicStep;
+const fcucV08MusicStartBase=fcucV07MusicStart;
+fcucV07MusicStart=function(){
+ const AC=window.AudioContext||window.webkitAudioContext;
+ if(!AC){toast('Аудио не поддерживается этим браузером');return;}
+ if(!fcucV07Audio)fcucV07Audio=new AC();
+ if(fcucV07Audio.state==='suspended')fcucV07Audio.resume();
+ state.musicEnabled=true;save();fcucV08MusicStep();
+ const b=$('#musicToggle');if(b)b.textContent='♫ МУЗЫКА: ВКЛ';
+};
+$('#musicModeSelect')?.addEventListener('change',e=>{
+ state.musicMode=e.target.value;
+ if(state.musicMode==='off'){state.musicEnabled=false;fcucV07MusicStop();}
+ else{state.musicEnabled=false;fcucV07MusicStop();fcucV07MusicStart();}
+ save();
+});
+$('#sfxModeSelect')?.addEventListener('change',e=>{state.soundEffects=e.target.value==='on';save();});
+let fcucV08Sfx=null;
+function fcucV08ClickSound(){
+ if(!state.soundEffects)return;
+ try{
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  if(!fcucV08Sfx)fcucV08Sfx=new AC();
+  if(fcucV08Sfx.state==='suspended')fcucV08Sfx.resume();
+  const ctx=fcucV08Sfx,osc=ctx.createOscillator(),gain=ctx.createGain(),now=ctx.currentTime;
+  osc.type='sine';osc.frequency.setValueAtTime(620,now);osc.frequency.exponentialRampToValueAtTime(460,now+.055);
+  gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(.018,now+.008);gain.gain.exponentialRampToValueAtTime(.0001,now+.07);
+  osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+.075);
+ }catch(_){}
+}
+document.addEventListener('pointerdown',e=>{
+ const target=e.target.closest('button,.nav,.claim,.primary,.outline');
+ if(target&&!target.disabled)fcucV08ClickSound();
+},{capture:true,passive:true});
+const oldMusicBtn=$('#musicToggle');
+if(oldMusicBtn){oldMusicBtn.textContent=state.musicEnabled?'♫ МУЗЫКА: ВКЛ':'♫ МУЗЫКА: ВЫКЛ';}
+
+// Hide the retired event side-challenges and keep only the main event path,
+// 3-day missions and weekly talent branch.
+const oldExtra=$('#eventQuests');
+if(oldExtra){const heading=oldExtra.previousElementSibling;if(heading?.textContent?.includes('ДОПОЛНИТЕЛЬНЫЕ'))heading.remove();oldExtra.remove();}
+const oldDailyTitle=$('#event .section-head');
+if(oldDailyTitle){/* preserve the normal 3-day event challenges */}
+fcucV08RenderPath();
+updateWallet();
+renderAll();
+renderEventMode();
+drawSquad();
+renderMarket();
+save();
+// Expose v0.8 patch helpers to v0.9 without duplicating their state.
+Object.assign(window,{fcucV08PathRewards,fcucV08RenderPath,fcucV08AutoSubs});
+})();
+
+
+/* ============================================================
+   FC Ultimate Club v0.9 — Winter & New Year event layer
+   ============================================================ */
+(function(){
+'use strict';
+const V09_WINTER_END='2027-01-25', V09_NY_START='2026-12-10', V09_NY_END='2027-01-05';
+const v09Date=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const v09Monday=()=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const v09Test=()=>!!state.newYearTestMode;
+const v09NYActive=()=>v09Test()||(v09Date()>=V09_NY_START&&v09Date()<=V09_NY_END);
+const v09NYUnlock=()=>v09Test()||v09Date()>=V09_NY_START;
+const v09NYExpired=()=>!v09Test()&&v09Date()>V09_NY_END;
+const v09CardDefs=[
+ {name:'Aleksey Batrakov',id:'ny_evt_batrakov_74',pos:'CAM',ovr:74,age:21,nation:'Россия',club:'Galatasaray',type:'event',event:'newyear',price:0,stats:{PAC:75,SHO:72,PAS:79,DRI:80,DEF:57,PHY:67}},
+ {name:'David de Gea',id:'ny_evt_degea_76',pos:'GK',ovr:76,age:36,nation:'Испания',club:'Fiorentina',type:'event',event:'newyear',price:0,stats:{PAC:55,SHO:45,PAS:70,DRI:68,DEF:78,PHY:73}},
+ {name:'Hugo Ekitiké',id:'ny_evt_ekitike_80',pos:'ST',ovr:80,age:24,nation:'Франция / Камерун',club:'Liverpool',type:'event',event:'newyear',price:0,stats:{PAC:84,SHO:82,PAS:74,DRI:83,DEF:39,PHY:79}}
+];
+// Inject the New Year event cards into the runtime event database, but keep them
+// out of the regular Winter token market.
+for(const c of v09CardDefs){if(!FCUC_EVENT_DB.some(p=>p.id===c.id))FCUC_EVENT_DB.push({...c});}
+const bat=FCUC_PLAYER_DB.find(p=>fcucNameKey(p.name)==='aleksey batrakov');
+if(bat){bat.ovr=78;bat.pos='CAM';bat.club='Galatasaray';bat.price=1050000;bat.value=32;bat.stats={PAC:78,SHO:76,PAS:83,DRI:82,DEF:60,PHY:70};}
+const batMarket=(state.market||[]).find(p=>fcucNameKey(p.name)==='aleksey batrakov');
+if(batMarket){batMarket.ovr=78;batMarket.club='Galatasaray';batMarket.price=1050000;}
+// Ensure persisted players in older careers use the upgraded base rating.
+for(const p of state.players||[])if(fcucNameKey(p.name)==='aleksey batrakov'&&p.id==='db_0397'){p.ovr=78;p.club='Galatasaray';}
+state.newYearTokens=Number(state.newYearTokens)||0;
+state.newYearGiftClaims=Array.isArray(state.newYearGiftClaims)?state.newYearGiftClaims:[];
+state.newYearWeekKey=state.newYearWeekKey||v09Monday();
+state.newYearWeekProgress=state.newYearWeekProgress||{matches:0,goals:0,wins:0};
+state.newYearWeekClaimed=!!state.newYearWeekClaimed;
+state.winterGuaranteedClaims=Array.isArray(state.winterGuaranteedClaims)?state.winterGuaranteedClaims:[];
+
+// Remove New Year-only cards from the ordinary Winter market.
+const v09RenderEventBase=renderEventMarket;
+renderEventMarket=function(){
+ const box=$('#eventPlayerMarket');if(!box)return;
+ const available=FCUC_EVENT_DB.filter(p=>p.event!=='newyear'&&!fcucOwned(p.name));
+ box.innerHTML=available.slice(0,34).map(p=>{const cost=60+Math.max(0,p.ovr-69)*10;return `<article class="market-card event-market-card"><div class="card-art winter-card"><b>${p.ovr}</b><small>${p.pos} · WINTER</small></div><div class="card-info"><b>${fcucSafeText(p.name)}</b><small>${fcucSafeText(p.club)} · ${p.age||'—'} лет</small><div class="price-row"><span>❄ ${cost} жетонов</span><button data-event-buy="${p.id}" data-cost="${cost}">ПОЛУЧИТЬ</button></div></div></article>`;}).join('')||'<p class="muted">Все доступные карточки события уже собраны.</p>';
+};
+
+// Winter milestone path: three reliable cards, with two optional extra cards.
+const v09WinterMilestones=[
+ {points:250,ovr:[68,74],label:'Первый зимний талант'},
+ {points:800,ovr:[69,76],label:'Второй зимний талант'},
+ {points:1500,ovr:[70,77],label:'Третий зимний талант'},
+ {points:2700,ovr:[74,80],label:'Бонусная зимняя карточка'},
+ {points:4000,ovr:[76,82],label:'Финальная зимняя карточка'}
+];
+// The older Winter Path player rewards become event tokens, keeping the
+// guaranteed Winter player range at 3–5 when the optional branch reward is earned.
+if(typeof fcucV08PathRewards!=='undefined'){fcucV08PathRewards[3]={label:'Жетоны события',detail:'45 жетонов события',unlock:500,type:'tokens',amount:45};fcucV08PathRewards[4]={label:'Жетоны события',detail:'60 жетонов события',unlock:1000,type:'tokens',amount:60};}
+function v09WinterRender(){const box=$('#winterGuaranteeTrack');if(!box)return;const pts=Number(state.eventPoints)||0;box.innerHTML=v09WinterMilestones.map((m,i)=>{const claimed=state.winterGuaranteedClaims.includes(i),open=pts>=m.points;return `<article class="winter-guarantee-card ${claimed?'claimed':open?'':'locked'}"><small>${i<3?'ГАРАНТИРОВАНО':'БОНУС'}</small><strong>${m.ovr[0]}–${m.ovr[1]}</strong><b>${m.label}</b><small>${m.points} очков события</small><button class="claim" data-winter-milestone="${i}" ${claimed||!open?'disabled':''}>${claimed?'ПОЛУЧЕНО':open?'ЗАБРАТЬ':'ЗАКРЫТО'}</button></article>`;}).join('');}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-winter-milestone]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();const i=Number(b.dataset.winterMilestone),m=v09WinterMilestones[i];if(!m||state.winterGuaranteedClaims.includes(i)||(Number(state.eventPoints)||0)<m.points)return;let pool=FCUC_EVENT_DB.filter(p=>p.event!=='newyear'&&!fcucOwned(p.name)&&Number(p.ovr)>=m.ovr[0]&&Number(p.ovr)<=m.ovr[1]);if(!pool.length)pool=FCUC_EVENT_DB.filter(p=>p.event!=='newyear'&&!fcucOwned(p.name)&&Number(p.ovr)>=m.ovr[0]);if(!pool.length){toast('Все карточки этого диапазона уже собраны.');return;}const p=pool[Math.floor(Math.random()*pool.length)];if(!fcucAddToClub(p,'winter-path'))return;state.winterGuaranteedClaims.push(i);save();v09WinterRender();modal('ЗИМНИЙ ИГРОК ПОЛУЧЕН',`${p.name} · ${p.ovr} OVR. Карточка добавлена в клуб.`,fcucCardHTML(p));},true);
+
+// New Year weekly objectives: reset on Monday and award three event tokens once
+// all three football tasks are complete.
+function v09RefreshNYWeek(){const key=v09Monday();if(state.newYearWeekKey!==key){state.newYearWeekKey=key;state.newYearWeekProgress={matches:0,goals:0,wins:0};state.newYearWeekClaimed=false;save();return true;}return false;}
+const v09NYQuests=[
+ {key:'matches',title:'Календарь праздников',desc:'Заверши 3 матча',goal:3},
+ {key:'goals',title:'Голевая гирлянда',desc:'Забей 5 голов',goal:5},
+ {key:'wins',title:'Победный Новый год',desc:'Выиграй 2 матча',goal:2}
+];
+const v09AddStatBase=addStat;
+addStat=function(key,n=1){v09AddStatBase(key,n);if(v09NYActive()&&key==='goals'){v09RefreshNYWeek();state.newYearWeekProgress.goals=(Number(state.newYearWeekProgress.goals)||0)+n;save();v09RenderNY();}};
+const v09FinishBase=finishMatch;
+finishMatch=function(){const was=!!match?.active,won=was&&match.home>match.away;v09FinishBase();if(was&&v09NYActive()){v09RefreshNYWeek();state.newYearWeekProgress.matches=(Number(state.newYearWeekProgress.matches)||0)+1;if(won)state.newYearWeekProgress.wins=(Number(state.newYearWeekProgress.wins)||0)+1;save();v09RenderNY();}};
+function v09RenderNY(){
+ const bal=$('#newYearTokenBalance');if(bal)bal.textContent=fmt(state.newYearTokens||0);
+ const lock=$('#newYearLockLabel');if(lock)lock.textContent=v09NYUnlock()?'СОБЫТИЕ ДОСТУПНО':'ОТКРОЕТСЯ 10.12.2026';
+ const open=$('#openNewYear');if(open){open.disabled=!v09NYUnlock()||v09NYExpired();open.textContent=v09NYExpired()?'СОБЫТИЕ ЗАВЕРШЕНО':v09NYUnlock()?'ОТКРЫТЬ NEW YEAR':'СКОРО ОТКРЫТИЕ';}
+ const cards=$('#newYearCardsPreview');if(cards)cards.innerHTML=v09CardDefs.map(c=>`<article class="newyear-card"><small>${c.club.toUpperCase()} · NEW YEAR</small><b>${c.ovr}</b><strong>${c.name}</strong><small>${c.pos} · EVENT CARD</small></article>`).join('');
+ const giftBox=$('#newYearGiftTimeline');if(giftBox){const gifts=[
+  {id:'batrakov',date:'21 ДЕКАБРЯ',key:'2026-12-21',title:'Aleksey Batrakov · 74 OVR',desc:'Эксклюзивная новогодняя карточка Галатасарая',icon:'🎁'},
+  {id:'degea',date:'31 ДЕКАБРЯ',key:'2026-12-31',title:'David de Gea · 76 OVR',desc:'Праздничная карточка вратаря',icon:'🎁'},
+  {id:'jan1',date:'1 ЯНВАРЯ',key:'2027-01-01',title:'Большой новогодний подарок',desc:'1 000 000 монет · 1 500 000 монет · Hugo Ekitiké 80 OVR',icon:'🎁'}
+ ];giftBox.innerHTML=gifts.map(g=>{const claimed=state.newYearGiftClaims.includes(g.id),unlocked=v09Test()||v09Date()>=g.key;return `<article class="newyear-gift ${claimed?'claimed':unlocked?'':'locked'}"><div class="newyear-gift-box">${g.icon}</div><div><div class="newyear-gift-date">${g.date}</div><b>${g.title}</b><p class="muted">${g.desc}</p></div><button class="${claimed?'outline':'primary'}" data-ny-gift="${g.id}" ${claimed||!unlocked?'disabled':''}>${claimed?'ПОЛУЧЕНО':unlocked?'🎁 ОТКРЫТЬ':'ЗАКРЫТО'}</button></article>`;}).join('');}
+ const weekly=$('#newYearWeekly');if(weekly){v09RefreshNYWeek();const prog=state.newYearWeekProgress||{};const done=v09NYQuests.filter(q=>(Number(prog[q.key])||0)>=q.goal).length;weekly.innerHTML=v09NYQuests.map(q=>{const n=Math.min(q.goal,Number(prog[q.key])||0),ok=n>=q.goal;return `<article class="quest"><div class="quest-icon">⚽</div><div class="quest-info"><b>${q.title}</b><small>${q.desc} · ${n}/${q.goal}</small><div class="bar"><i style="width:${n/q.goal*100}%"></i></div></div><div class="quest-reward">🎟 +1 жетон</div><span>${ok?'ГОТОВО':'В ПРОЦЕССЕ'}</span></article>`;}).join('')+`<div class="weekly-bonus"><b>Награда за все 3 задания: 3 жетона New Year</b><button class="primary" id="claimNewYearWeek" ${done<3||state.newYearWeekClaimed?'disabled':''}>${state.newYearWeekClaimed?'ПОЛУЧЕНО':'ЗАБРАТЬ 3 ЖЕТОНА'}</button></div>`;const label=$('#newYearWeekLabel');if(label)label.textContent=`НЕДЕЛЯ С ${state.newYearWeekKey}`;}
+}
+
+document.addEventListener('click',e=>{
+ const gift=e.target.closest('[data-ny-gift]');if(gift){e.preventDefault();e.stopImmediatePropagation();gift.closest('.newyear-gift')?.classList.add('gift-open');const id=gift.dataset.nyGift;if(state.newYearGiftClaims.includes(id))return;const keys={batrakov:'2026-12-21',degea:'2026-12-31',jan1:'2027-01-01'};if(!v09Test()&&v09Date()<keys[id]){toast('Этот подарок пока закрыт.');return;}let result='';
+  if(id==='batrakov'||id==='degea'){const c=v09CardDefs.find(x=>x.id===(id==='batrakov'?'ny_evt_batrakov_74':'ny_evt_degea_76'));const added=fcucAddToClub(c,'newyear-gift');if(!added){state.coins+=100000;result='Карточка уже была в клубе — вместо неё начислено 100 000 монет.';}else result=`${c.name} · ${c.ovr} OVR добавлен в клуб.`;}
+  else{const roll=Math.random();if(roll<.38){state.coins+=1000000;result='🎁 1 000 000 монет!';}else if(roll<.72){state.coins+=1500000;result='🎁 1 500 000 монет!';}else{const c=v09CardDefs.find(x=>x.id==='ny_evt_ekitike_80');const added=fcucAddToClub(c,'newyear-gift');if(!added){state.coins+=1000000;result='Hugo Ekitiké уже был в клубе — начислен 1 000 000 монет.';}else result='🎁 Hugo Ekitiké · 80 OVR!';}}
+  state.newYearGiftClaims.push(id);save();updateWallet();v09RenderNY();renderAll();modal('НОВОГОДНИЙ ПОДАРОК ОТКРЫТ',result);return;
+ }
+ if(e.target.closest('#claimNewYearWeek')){e.preventDefault();e.stopImmediatePropagation();v09RefreshNYWeek();const p=state.newYearWeekProgress||{};if(!v09NYQuests.every(q=>(Number(p[q.key])||0)>=q.goal)||state.newYearWeekClaimed)return;state.newYearWeekClaimed=true;state.newYearTokens+=3;save();v09RenderNY();toast('Получено 3 жетона New Year!');return;}
+ if(e.target.closest('#newYearPlayerPack')){e.preventDefault();e.stopImmediatePropagation();if(state.newYearTokens<3){toast('Нужно 3 жетона New Year.');return;}const candidates=FCUC_PLAYER_DB.filter(p=>Number(p.ovr)>=60&&!fcucOwned(p.name));if(!candidates.length){toast('В базе не осталось новых игроков 60+.');return;}const weighted=[];for(const p of candidates){const w=p.ovr>=85?1:p.ovr>=80?3:p.ovr>=75?7:p.ovr>=70?16:30;for(let i=0;i<w;i++)weighted.push(p);}const p=weighted[Math.floor(Math.random()*weighted.length)];state.newYearTokens-=3;const added=fcucAddToClub(p,'newyear-pack');if(!added){state.newYearTokens+=3;return;}state.stats.packs=(state.stats.packs||0)+1;save();updateWallet();v09RenderNY();modal('НОВОГОДНИЙ НАБОР',`${p.name} · ${p.ovr} OVR. Рейтинг 60+; чем выше рейтинг, тем реже выпадение.`,fcucCardHTML(p));return;}
+ if(e.target.closest('#newYearCoinsReward')){e.preventDefault();e.stopImmediatePropagation();if(state.newYearTokens<6){toast('Нужно накопить 6 жетонов New Year.');return;}state.newYearTokens-=6;state.coins+=300000;save();updateWallet();v09RenderNY();modal('ГАРАНТИРОВАННАЯ НАГРАДА','Получено 300 000 монет за 6 жетонов New Year.');return;}
+},true);
+
+// Entering the New Year page temporarily applies its red/green holiday skin.
+const v09NavigateBase=navigate;
+navigate=function(page){if(page!=='newyear')document.body.classList.remove('newyear-theme');v09NavigateBase(page);if(page==='newyear'){if(!v09NYUnlock()||v09NYExpired()){toast('New Year Event откроется 10 декабря 2026 года.');v09NavigateBase('event');return;}document.body.classList.add('newyear-theme');v09RenderNY();}};
+$('#openNewYear')?.addEventListener('click',()=>{if(!v09NYUnlock()||v09NYExpired()){toast('Событие откроется 10 декабря 2026 года.');return;}navigate('newyear');});
+$('#backToWinter')?.addEventListener('click',()=>navigate('event'));
+
+// Match simulation is removed. The live match clock runs at 1X or 3X only.
+let v09Speed=1;
+function v09SetSpeed(){if(!match?.active)return;clearInterval(match.timer);match.timer=setInterval(matchTick,Math.round(650/v09Speed));const b=$('#matchSpeed');if(b)b.textContent=`СКОРОСТЬ: ${v09Speed}X`;}
+const v09StartBase=startMatch;
+startMatch=function(){if(match?.active)return;v09Speed=1;v09StartBase();if(match?.active)v09SetSpeed();const b=$('#matchSpeed');if(b)b.textContent='СКОРОСТЬ: 1X';};
+$('#matchSpeed')?.addEventListener('click',()=>{v09Speed=v09Speed===1?3:1;if(match?.active)v09SetSpeed();else{$('#matchSpeed').textContent=`СКОРОСТЬ: ${v09Speed}X`;}toast(v09Speed===3?'Ускорение матча 3X':'Обычная скорость 1X');});
+// Old legacy controls cannot fast-forward or manually end a match anymore.
+$('#matchSkip')?.remove();$('#matchEnd')?.remove();
+
+// Higher ratings are rarer in normal packs; the database remains intact.
+fcucOpenPack=function(cost,type){if(state.gems<cost){toast('Недостаточно обычных самоцветов');return;}const ranges={standard:[40,70],starter:[40,70],gold:[55,82],premium:[55,82],elite:[70,93]};const [min,max]=ranges[type]||ranges.standard;const candidates=FCUC_PLAYER_DB.filter(p=>p.ovr>=min&&p.ovr<=max&&!fcucOwned(p.name));if(!candidates.length){toast('В этом диапазоне больше нет новых игроков');return;}const weighted=[];for(const p of candidates){const w=p.ovr>=90?1:p.ovr>=85?2:p.ovr>=80?5:p.ovr>=75?10:p.ovr>=70?18:30;for(let i=0;i<w;i++)weighted.push(p);}const p=weighted[Math.floor(Math.random()*weighted.length)];state.gems-=cost;addStat('packs');const added=fcucAddPlayerToPool(p);if(!added){toast('Игрок уже есть в клубе — попробуй ещё раз');return;}if(typeof fcucV06AddXP==='function')fcucV06AddXP(10,'набор');const owned=state.players[state.players.length-1];modal('ИГРОК ПОЛУЧЕН!',`${owned.name} · ${owned.pos} · рейтинг ${owned.ovr}. Высокие рейтинги теперь встречаются заметно реже.`,fcucCardHTML(owned));save();updateWallet();};
+
+// New Year state is also refreshed on app return and periodic quest refresh.
+const v09RefreshBase=fcucV07RefreshCycles;
+fcucV07RefreshCycles=function(){const oldWeek=state.weekStart;v09RefreshBase();const nyChanged=v09RefreshNYWeek();if(oldWeek!==state.weekStart){renderAll();renderDaily();renderBranch();}if(nyChanged)v09RenderNY();};
+setInterval(()=>{v09RefreshNYWeek();v09RenderNY();v09WinterRender();},30000);
+// Winter event end date is visible in its banner.
+const winterBanner=$('#event .event-banner');if(winterBanner){const p=winterBanner.querySelector('p');if(p)p.textContent='Играй зимние матчи, выполняй испытания и собирай ледяные карточки 69–82 OVR. Событие действует до 25 января 2027 года.';}
+const winterEyebrow=$('#event .event-banner small');if(winterEyebrow)winterEyebrow.textContent='ГЛАВНОЕ СОБЫТИЕ · ДО 25.01.2027';
+// Update rendering hooks after all v0.8 render functions are in place.
+const v09RenderEventModeBase=renderEventMode;
+renderEventMode=function(){v09RenderEventModeBase();v09WinterRender();};
+const v09UpdateWalletBase=updateWallet;
+updateWallet=function(){v09UpdateWalletBase();const b=$('#newYearTokenBalance');if(b)b.textContent=fmt(state.newYearTokens||0);};
+v09RefreshNYWeek();v09WinterRender();v09RenderNY();
+
+/* ============================================================
+   FC Ultimate Club v0.9.1 HOTFIX
+   Reliable store packs, 1X/3X live match clock, substitutions,
+   final whistle and weekly Winter Path reward rotation.
+   ============================================================ */
+// Starter gems: the previous new-career grant (10) was below the cheapest
+// store pack price (15), making every pack appear unusable on a fresh career.
+if(!state.packStarterGrantClaimed){state.gems=Math.max(60,Number(state.gems)||0);state.packStarterGrantClaimed=true;save();updateWallet();}
+
+// Store packs always use the correct database and the correct currency.
+fcucOpenPack=function(cost,type='standard'){
+ cost=Math.max(0,Number(cost)||0);
+ if(Number(state.gems||0)<cost){toast(`Недостаточно самоцветов: нужно ${cost}, у тебя ${Number(state.gems)||0}.`);return;}
+ const ranges={standard:[40,70],starter:[40,72],gold:[55,85],premium:[60,88],elite:[70,93]};
+ const [min,max]=ranges[type]||ranges.standard;
+ let candidates=FCUC_PLAYER_DB.filter(p=>Number(p.ovr)>=min&&Number(p.ovr)<=max&&!fcucOwned(p.name));
+ if(!candidates.length)candidates=FCUC_PLAYER_DB.filter(p=>Number(p.ovr)>=min&&Number(p.ovr)<=max);
+ if(!candidates.length){toast('В базе пока нет игроков для этого набора.');return;}
+ const weighted=[];
+ for(const p of candidates){const rating=Number(p.ovr)||50;const weight=rating>=90?1:rating>=85?2:rating>=80?4:rating>=75?8:rating>=70?16:28;for(let i=0;i<weight;i++)weighted.push(p);}
+ const chosen=weighted[Math.floor(Math.random()*weighted.length)];
+ // Duplicate cards are allowed only when every player in the pack's rating
+ // band is already owned.
+ state.gems-=cost;
+ const added=fcucAddPlayerToPool(chosen);
+ if(!added){state.gems+=cost;toast('Не удалось добавить карточку. Попробуй ещё раз.');return;}
+ state.stats=state.stats||{};state.stats.packs=(Number(state.stats.packs)||0)+1;
+ state.weeklyProgress=state.weeklyProgress||{};state.weeklyProgress.packs=(Number(state.weeklyProgress.packs)||0)+1;
+ if(typeof fcucV06AddXP==='function')fcucV06AddXP(10,'открытие набора');
+ save();updateWallet();renderAll();drawSquad();renderReserve?.();
+ const owned=state.players[state.players.length-1];
+ modal('НАБОР ОТКРЫТ!',`${owned.name} · ${owned.pos} · ${owned.ovr} OVR. Карточка добавлена в клуб.`,fcucCardHTML(owned));
+};
+
+// Replace the live match clock with one authoritative timer. No instant
+// simulation/skip button: every match runs to 90 minutes at 1X or 3X.
+let v091Speed=1;
+function v091SetSpeed(next){
+ v091Speed=next===3?3:1;
+ const btn=$('#matchSpeed');if(btn)btn.textContent=`СКОРОСТЬ: ${v091Speed}X`;
+ if(match?.active){clearInterval(match.timer);match.timer=setInterval(matchTick,Math.round(650/v091Speed));}
+}
+function v091RenderClock(){
+ renderMatchSetup();
+ const bar=$('#matchTimeline');if(bar)bar.style.width=`${Math.min(100,match.minute/90*100)}%`;
+ const score=$('#score');if(score)score.textContent=match.active?'МАТЧ ИДЁТ':match._finished?'ФИНАЛЬНЫЙ СВИСТОК':'МАТЧ ГОТОВ';
+}
+function v091FinishMatch(){
+ if(!match?.active||match._finished||match._finishing)return;
+ match._finishing=true;clearInterval(match.timer);match.timer=null;
+ const won=match.home>match.away,draw=match.home===match.away;
+ match.active=false;match._finished=true;match.minute=90;
+ state.coins=(Number(state.coins)||0)+(won?50000:10000);
+ state.stats=state.stats||{};state.stats.matches=(Number(state.stats.matches)||0)+1;
+ state.stats.wins=(Number(state.stats.wins)||0)+(won?1:0);
+ state.weeklyProgress=state.weeklyProgress||{};state.weeklyProgress.matches=(Number(state.weeklyProgress.matches)||0)+1;
+ state.weeklyProgress.wins=(Number(state.weeklyProgress.wins)||0)+(won?1:0);
+ state.eventProgress=state.eventProgress||{};state.eventProgress.matches=(Number(state.eventProgress.matches)||0)+1;
+ state.eventProgress.wins=(Number(state.eventProgress.wins)||0)+(won?1:0);
+ state.dailyProgress=state.dailyProgress||{};state.dailyProgress.matches=(Number(state.dailyProgress.matches)||0)+1;
+ state.dailyProgress.wins=(Number(state.dailyProgress.wins)||0)+(won?1:0);
+ state.branchProgress=state.branchProgress||{};state.branchProgress.matches=(Number(state.branchProgress.matches)||0)+1;
+ state.branchProgress.wins=(Number(state.branchProgress.wins)||0)+(won?1:0);
+ state.seasonXP=(Number(state.seasonXP)||0)+50;
+ state.eventPoints=(Number(state.eventPoints)||0)+50;
+ state.weeklyProgress.eventPoints=(Number(state.weeklyProgress.eventPoints)||0)+50;
+ state.clubLevel=1+Math.floor((Number(state.seasonXP)||0)/500);
+ state.history=state.history||[];
+ state.history.unshift({date:new Date().toLocaleDateString('ru-RU'),score:`${match.home} — ${match.away}`,result:won?'Победа':draw?'Ничья':'Поражение'});
+ state.history=state.history.slice(0,12);
+ if(v09NYActive()){
+  v09RefreshNYWeek();state.newYearWeekProgress=state.newYearWeekProgress||{matches:0,goals:0,wins:0};
+  state.newYearWeekProgress.matches=(Number(state.newYearWeekProgress.matches)||0)+1;
+  if(won)state.newYearWeekProgress.wins=(Number(state.newYearWeekProgress.wins)||0)+1;
+  v09RenderNY();
+ }
+ match._finishing=false;matchLog('Финальный свисток.');
+ $('#matchStart')?.removeAttribute('disabled');
+ const speed=$('#matchSpeed');if(speed)speed.textContent='СКОРОСТЬ: 1X';
+ v091Speed=1;v091RenderClock();save();updateWallet();renderAll();renderDaily?.();renderBranch?.();renderEventMode?.();v09WinterRender();
+ modal(won?'ПОБЕДА! +50 000':draw?'НИЧЬЯ · МАТЧ ЗАВЕРШЁН':'МАТЧ ЗАВЕРШЁН',`${state.club?.name||'Frost United'} ${match.home} — ${match.away} Thunder FC. ${won?'Начислено 50 000 монет.':'Начислено 10 000 монет за матч.'}`);
+}
+finishMatch=v091FinishMatch;
+matchTick=function(){
+ if(!match?.active||match._finished)return;
+ match.minute=Math.min(90,(Number(match.minute)||0)+1);
+ const ids=(state.startingXI||[]).slice(0,11);
+ const avg=ids.reduce((n,id)=>n+(Number(playerById(id)?.ovr)||50),0)/Math.max(1,ids.length);
+ const attack=match.style==='Атака'?.004:match.style==='Оборона'?-.003:0;
+ const homeChance=Math.max(.006,Math.min(.035,(.014+(avg-65)*.00035+attack)));
+ const awayChance=.014;
+ const r=Math.random();
+ if(r<homeChance){match.home++;addStat('goals');matchLog('ГОЛ! '+(state.club?.name||'Frost United')+' забивает!');state.seasonXP=(Number(state.seasonXP)||0)+8;state.eventPoints=(Number(state.eventPoints)||0)+8;state.weeklyProgress.eventPoints=(Number(state.weeklyProgress.eventPoints)||0)+8;}
+ else if(r<homeChance+awayChance){match.away++;matchLog('Соперник забивает гол.');}
+ else if(match.minute%7===0)matchLog(['Опасная атака хозяев','Удар — вратарь спасает','Подача с фланга','Перехват в центре поля','Стандарт у ворот соперника'][Math.floor(Math.random()*5)]);
+ v091RenderClock();save();
+ if(match.minute>=90)finishMatch();
+};
+startMatch=function(){
+ if(match?.active)return;
+ match={active:true,minute:0,home:0,away:0,subs:0,log:[],timer:null,style:state.style,formation:state.formation,_finished:false,_finishing:false};
+ $('#matchStart')?.setAttribute('disabled','disabled');
+ matchLog('Матч начался. Свисток арбитра!');v091RenderClock();
+ v091SetSpeed(v091Speed||1);
+ toast(`Матч начался · скорость ${v091Speed}X`);
+};
+// Rating-based substitutions are limited by the five-substitution match rule.
+fcucV08AutoSubs=function(){
+ if(!match?.active){toast('Начни матч — тогда можно выполнить автозамены.');return;}
+ const remaining=Math.max(0,5-(Number(match.subs)||0));let made=0;
+ while(made<remaining){let best=null,bestGain=0;
+  for(let bi=0;bi<(state.bench||[]).length;bi++)for(let si=0;si<(state.startingXI||[]).length;si++){
+   const sub=playerById(state.bench[bi]),starter=playerById(state.startingXI[si]);
+   const gain=fcucV07EffectiveOVR(sub,si)-fcucV07EffectiveOVR(starter,si);
+   if(gain>bestGain){bestGain=gain;best={bi,si};}
+  }
+  if(!best)break;
+  const out=state.startingXI[best.si],incoming=state.bench[best.bi];
+  state.startingXI[best.si]=incoming;state.bench[best.bi]=out;
+  match.subs=(Number(match.subs)||0)+1;made++;
+ }
+ save();drawSquad();renderReserve?.();updateOverall?.();
+ if(made)matchLog(`Автозамены по рейтингу: ${made}. Использовано ${match.subs}/5.`);
+ toast(made?`Автозамен выполнено: ${made} · осталось ${5-match.subs}`:'На скамейке нет игроков сильнее подходящих игроков основы.');
+};
+
+window.fcucV091AutoSubs=function(){
+ if(!match?.active){toast('Начни матч — тогда можно выполнить автозамены.');return;}
+ const remaining=Math.max(0,5-(Number(match.subs)||0));let made=0;
+ while(made<remaining){let best=null,bestGain=0;
+  for(let bi=0;bi<(state.bench||[]).length;bi++)for(let si=0;si<(state.startingXI||[]).length;si++){
+   const sub=playerById(state.bench[bi]),starter=playerById(state.startingXI[si]);
+   const gain=fcucV07EffectiveOVR(sub,si)-fcucV07EffectiveOVR(starter,si);
+   if(gain>bestGain){bestGain=gain;best={bi,si};}
+  }
+  if(!best)break;
+  const out=state.startingXI[best.si],incoming=state.bench[best.bi];
+  state.startingXI[best.si]=incoming;state.bench[best.bi]=out;
+  match.subs=(Number(match.subs)||0)+1;made++;
+ }
+ save();drawSquad();renderReserve?.();updateOverall?.();
+ if(made)matchLog(`Автозамены по рейтингу: ${made}. Использовано ${match.subs}/5.`);
+ toast(made?`Автозамен выполнено: ${made} · осталось ${5-match.subs}`:'На скамейке нет игроков сильнее подходящих игроков основы.');
+};
+
+// Start and speed listeners are delegated so that they remain valid after
+// navigation/rendering and cannot be shadowed by legacy inline handlers.
+document.addEventListener('click',e=>{
+ const speed=e.target.closest('#matchSpeed');if(speed){e.preventDefault();e.stopImmediatePropagation();v091SetSpeed(v091Speed===1?3:1);toast(v091Speed===3?'Ускорение матча 3X':'Обычная скорость 1X');return;}
+ const start=e.target.closest('#matchStart');if(start){e.preventDefault();e.stopImmediatePropagation();startMatch();return;}
+},true);
+// Remove any legacy instant-simulation and manual-finish controls.
+$('#matchSkip')?.remove();$('#matchEnd')?.remove();
+
+// Weekly Winter Path: new reward lineup and fresh claims every Monday.
+const v091WinterPathSets=[
+ [
+  {label:'10 жетонов события',kind:'tokens',amount:10,unlock:0},{label:'15 зимних самоцветов',kind:'winter',amount:15,unlock:0},{label:'15 000 монет',kind:'coins',amount:15000,unlock:150},{label:'25 жетонов события',kind:'tokens',amount:25,unlock:350},{label:'30 зимних самоцветов',kind:'winter',amount:30,unlock:650}
+ ],
+ [
+  {label:'12 зимних самоцветов',kind:'winter',amount:12,unlock:0},{label:'15 жетонов события',kind:'tokens',amount:15,unlock:0},{label:'20 000 монет',kind:'coins',amount:20000,unlock:150},{label:'30 жетонов события',kind:'tokens',amount:30,unlock:350},{label:'35 зимних самоцветов',kind:'winter',amount:35,unlock:650}
+ ],
+ [
+  {label:'15 жетонов события',kind:'tokens',amount:15,unlock:0},{label:'20 зимних самоцветов',kind:'winter',amount:20,unlock:0},{label:'25 000 монет',kind:'coins',amount:25000,unlock:150},{label:'35 жетонов события',kind:'tokens',amount:35,unlock:350},{label:'40 зимних самоцветов',kind:'winter',amount:40,unlock:650}
+ ],
+ [
+  {label:'18 зимних самоцветов',kind:'winter',amount:18,unlock:0},{label:'18 жетонов события',kind:'tokens',amount:18,unlock:0},{label:'30 000 монет',kind:'coins',amount:30000,unlock:150},{label:'40 жетонов события',kind:'tokens',amount:40,unlock:350},{label:'45 зимних самоцветов',kind:'winter',amount:45,unlock:650}
+ ]
+];
+function v091RefreshWinterWeek(){
+ const key=v09Monday();
+ if(state.winterPathWeekKey!==key){state.winterPathWeekKey=key;state.winterPathClaimed=[];save();return true;}
+ if(!Array.isArray(state.winterPathClaimed))state.winterPathClaimed=[];
+ return false;
+}
+function v091WinterRewards(){const week=Math.floor(Date.UTC(...v09Monday().split('-').map((v,i)=>i===1?Number(v)-1:Number(v)))/604800000);return v091WinterPathSets[((week%v091WinterPathSets.length)+v091WinterPathSets.length)%v091WinterPathSets.length];}
+fcucV08RenderPath=function(){
+ const box=$('#eventPathRewards');if(!box)return;
+ v091RefreshWinterWeek();const rewards=v091WinterRewards();const pts=Number(state.weeklyProgress?.eventPoints)||0;
+ box.innerHTML=rewards.map((r,i)=>{const claimed=state.winterPathClaimed.includes(i),open=i<2||pts>=r.unlock;return `<article class="reward ${claimed?'done':open?'current':'locked'}"><small>${i+1}</small><b>${r.unlock?`${r.unlock} ОЧКОВ НЕДЕЛИ`:'ОТКРЫТО'}</b><span>${r.label}</span><button class="claim" data-winter-week-path="${i}" ${claimed||!open?'disabled':''}>${claimed?'ПОЛУЧЕНО':open?'ЗАБРАТЬ':'ЗАКРЫТО'}</button></article>`;}).join('');
+ const head=box.previousElementSibling;const label=head?.querySelector('span');if(label)label.textContent=`НОВАЯ НЕДЕЛЯ · ${state.winterPathWeekKey}`;
+};
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-winter-week-path]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();
+ v091RefreshWinterWeek();const i=Number(b.dataset.winterWeekPath),r=v091WinterRewards()[i],pts=Number(state.weeklyProgress?.eventPoints)||0;
+ if(!r||state.winterPathClaimed.includes(i)||(i>=2&&pts<r.unlock))return;
+ if(r.kind==='tokens')state.eventTokens=(Number(state.eventTokens)||0)+r.amount;
+ else if(r.kind==='winter'){state.winterGems=(Number(state.winterGems)||0)+r.amount;state.eventCoins=state.winterGems;}
+ else if(r.kind==='coins')state.coins=(Number(state.coins)||0)+r.amount;
+ state.winterPathClaimed.push(i);save();updateWallet();fcucV08RenderPath();renderEventMode();drawSquad();renderReserve?.();toast('Недельная награда Зимнего пути получена!');
+},true);
+const v091RenderEventModeBase=renderEventMode;
+renderEventMode=function(){v091RenderEventModeBase();fcucV08RenderPath();v09WinterRender();};
+// Repaint the weekly path after week rollover and when the player returns to the tab.
+const v091CycleBase=fcucV07RefreshCycles;
+fcucV07RefreshCycles=function(){v091CycleBase();if(v091RefreshWinterWeek())fcucV08RenderPath();};
+setInterval(()=>{if(v091RefreshWinterWeek())fcucV08RenderPath();},30000);
+fcucV08RenderPath();
+
 })();
