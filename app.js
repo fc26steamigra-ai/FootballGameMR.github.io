@@ -1520,4 +1520,160 @@ fcucV07RefreshCycles=function(){v091CycleBase();if(v091RefreshWinterWeek())fcucV
 setInterval(()=>{if(v091RefreshWinterWeek())fcucV08RenderPath();},30000);
 fcucV08RenderPath();
 
+
+/* ================= FC ULTIMATE CLUB 1.0 =================
+   Daily tournament hub + animated New Year card reveal. */
+const v10ModalBase=modal;
+modal=function(title,txt,extra=''){
+ if(title==='НОВОГОДНИЙ ПОДАРОК ОТКРЫТ'&&!extra){
+  let card=null;
+  if(String(txt).includes('Aleksey Batrakov'))card=v09CardDefs.find(p=>p.id==='ny_evt_batrakov_74');
+  else if(String(txt).includes('David de Gea'))card=v09CardDefs.find(p=>p.id==='ny_evt_degea_76');
+  else if(String(txt).includes('Hugo Ekitiké'))card=v09CardDefs.find(p=>p.id==='ny_evt_ekitike_80');
+  if(card)extra=fcucCardHTML(card);
+ }
+ v10ModalBase(title,txt,extra);
+ if(extra&&/reveal-card/.test(extra)){const c=$('#modalExtra .reveal-card');if(c){c.classList.remove('card-fly-in');void c.offsetWidth;c.classList.add('card-fly-in');}}
+};
+const v10Today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const v10HolidayEra=()=>v10Today()>='2026-12-18'&&v10Today()<='2027-01-05';
+const v10EarlyNames=[
+ {name:'АЗИАТСКОЕ ТУРНЕ',tag:'ASIA TOUR',teams:['Seoul Tigers','Tokyo United','Bangkok City','Shanghai Stars','Jakarta FC','Osaka Blue']},
+ {name:'ЗИМНЕЕ ТУРНЕ',tag:'WINTER TOUR',teams:['Nordic Wolves','Alpine FC','Frostberg','Helsinki North','Riga Athletic','Prague Ice']},
+ {name:'КУБОК СЕВЕРНЫХ ЗВЁЗД',tag:'NORTH STAR CUP',teams:['Oslo Aurora','Stockholm IF','Tallinn Wolves','Copenhagen 09','Vilnius Stars','Reykjavik FC']},
+ {name:'КУБОК МОЛОДЫХ',tag:'YOUNG TALENTS',teams:['Lisbon Academy','Porto Juniors','Braga Future','Valencia B','Lyon Next','Ajax Youth']}
+];
+const v10HolidayNames=[
+ {name:'НОВОГОДНИЙ КУБОК',tag:'NEW YEAR CUP',teams:['Santa City','North Pole FC','Evergreen United','Red Ribbon SC','Snowflake Town','Midnight Stars']},
+ {name:'КУБОК СНЕЖНОЙ КОРОНЫ',tag:'SNOW CROWN',teams:['Ice Crown FC','Winter Palace','Crystal Rangers','Aurora Eleven','Glacier Town','Polar Athletic']},
+ {name:'РОЖДЕСТВЕНСКОЕ ТУРНЕ',tag:'HOLIDAY TOUR',teams:['Jingle Town','Candy Cane FC','Golden Bells','Silver Bells','Holiday Athletic','New Dawn FC']},
+ {name:'ЗИМНИЙ ЧЕМПИОНСКИЙ КУБОК',tag:'WINTER CHAMPIONS',teams:['Blizzard FC','Frostbite United','Arctic Eleven','White Peak','Snowstorm City','Northern Lights']}
+];
+const v10Difficulty={
+ easy:{label:'ЛЁГКАЯ',factor:-8,early:{kind:'gems',amount:2,label:'2 самоцвета'},holiday:{kind:'gems',amount:4,label:'4 самоцвета'}},
+ hard:{label:'СЛОЖНАЯ',factor:5,early:{kind:'coins',amount:15000,label:'15 000 монет'},holiday:{kind:'gems',amount:8,label:'8 самоцветов'}}
+};
+const v10TournamentDefs=()=>{
+ const n=Math.floor((new Date(v10Today()+'T00:00:00').getTime()-new Date('2026-11-23T00:00:00').getTime())/86400000);
+ const pool=v10HolidayEra()?v10HolidayNames:v10EarlyNames;
+ const defs=[{id:'daily_a',...pool[((n%pool.length)+pool.length)%pool.length],holiday:v10HolidayEra()},
+             {id:'daily_b',...pool[(((n+1)%pool.length)+pool.length)%pool.length],holiday:v10HolidayEra()}];
+ if(v10HolidayEra())defs.push({id:'daily_c',...pool[(((n+2)%pool.length)+pool.length)%pool.length],holiday:true});
+ return defs;
+};
+const v10EnsureState=()=>{
+ const day=v10Today();
+ if(!state.tournamentsV10||state.tournamentsV10.dayKey!==day)state.tournamentsV10={dayKey:day,completed:0,entries:{}};
+ state.tournamentsV10.entries=state.tournamentsV10.entries||{};
+ for(const d of v10TournamentDefs())if(!state.tournamentsV10.entries[d.id])state.tournamentsV10.entries[d.id]={used:0,round:0,cleared:false,difficulty:null,wins:0};
+ return state.tournamentsV10;
+};
+let v10ActiveId=null,v10ActiveDifficulty=null,v10MatchTimer=null,v10MatchSpeed=1,v10TournamentMatch=null;
+const v10OpponentFor=(def,round)=>def.teams[round*2]||def.teams[0];
+const v10PlayerStrength=()=>Math.round((state.startingXI||[]).slice(0,11).reduce((n,id)=>n+(Number(playerById(id)?.ovr)||50),0)/Math.max(1,Math.min(11,(state.startingXI||[]).length)));
+const v10GetEntry=id=>v10EnsureState().entries[id];
+const v10RewardFor=(def,difficulty)=>{
+ if(def.holiday&&difficulty==='hard'&&def.id==='daily_b')return {kind:'player',amount:1,label:'Игрок 62+ OVR'};
+ if(!def.holiday&&difficulty==='easy'&&def.id==='daily_b')return {kind:'coins',amount:5000,label:'5 000 монет'};
+ if(def.holiday&&difficulty==='easy'&&def.id==='daily_c')return {kind:'gems',amount:4,label:'4 самоцвета'};
+ return {...v10Difficulty[difficulty][def.holiday?'holiday':'early']};
+};
+function v10RenderCards(){
+ const box=$('#tournamentCards');if(!box)return;const data=v10EnsureState(),defs=v10TournamentDefs();
+ $('#tournamentDate').textContent=new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+ $('#tournamentDailyProgress').textContent=`${data.completed||0} / 2 ЗАВЕРШЕНО`;
+ $('#tournamentSeasonLabel').textContent=v10HolidayEra()?'NEW YEAR TOURNAMENTS':'WINTER TOUR · ДО 17.12';
+ const teamRating=$('#tournamentTeamRating');if(teamRating)teamRating.textContent=v10PlayerStrength();
+ box.innerHTML=defs.map((d,i)=>{const e=data.entries[d.id],done=e.cleared,locked=(data.completed||0)>=2&&!done,exhausted=(e.used||0)>=3&&!done;
+ const re=v10RewardFor(d,'easy'),rh=v10RewardFor(d,'hard');
+ return `<article class="tournament-card ${done?'is-cleared':''} ${locked?'is-locked':''}"><div class="tournament-card-top"><small>${d.tag}</small><span>${d.holiday?'🎄 NEW YEAR':'❄ WINTER'}</span></div><div class="tournament-card-art"><b>${i===0?'🏆':'🥇'}</b><small>DAILY CUP · 0${i+1}/0${defs.length}</small></div><h3>${d.name}</h3><p>Три матча до трофея: 1/4 финала → полуфинал → финал.</p><div class="tournament-card-status"><span>ПОПЫТКИ: ${Math.max(0,3-(e.used||0))}/3</span><span>${done?'ПОБЕДИТЕЛЬ':exhausted?'ПОПЫТКИ ЗАКОНЧИЛИСЬ':`ПРОГРЕСС: ${e.round||0}/3`}</span></div><div class="tournament-difficulties"><button class="tournament-difficulty easy" data-tournament-enter="${d.id}" data-difficulty="easy" ${done||locked||exhausted?'disabled':''}><b>ЛЁГКАЯ</b><small>${re.label}</small></button><button class="tournament-difficulty hard" data-tournament-enter="${d.id}" data-difficulty="hard" ${done||locked||exhausted?'disabled':''}><b>СЛОЖНАЯ</b><small>${rh.label}</small></button></div>${done?'<div class="tournament-won">🏆 ТУРНИР ВЫИГРАН</div>':locked?'<div class="tournament-won muted">ДНЕВНОЙ ЛИМИТ ДОСТИГНУТ</div>':''}</article>`;
+ }).join('');
+}
+function v10RenderBracket(){
+ const box=$('#tournamentBracket');if(!box)return;
+ if(!v10ActiveId){box.innerHTML='<p class="muted">Выбери турнир, чтобы начать путь с 1/4 финала.</p>';$('#tournamentBracketLabel').textContent='ВЫБЕРИ ТУРНИР';return;}
+ const def=v10TournamentDefs().find(x=>x.id===v10ActiveId),e=v10GetEntry(v10ActiveId);if(!def||!e)return;
+ const rounds=['1/4 ФИНАЛА','ПОЛУФИНАЛ','ФИНАЛ'];
+ box.innerHTML=`<div class="bracket-head"><div><small>${def.tag} · ${v10Difficulty[v10ActiveDifficulty||e.difficulty||'easy'].label}</small><b>${def.name}</b></div><span>${e.wins||0}/3 ПОБЕД</span></div><div class="bracket-rounds">${rounds.map((r,i)=>`<div class="bracket-round ${i<e.round?'won':i===e.round?'current':''}"><small>${r}</small><b>${i<e.round?'✓':i===e.round?'▶':'🔒'}</b><span>${i<e.round?'ПРОЙДЕНО':i===e.round?'СЛЕДУЮЩИЙ МАТЧ':'ОЖИДАНИЕ'}</span></div>`).join('')}</div>`;
+ $('#tournamentBracketLabel').textContent=e.round>=3?'ТУРНИР ЗАВЕРШЁН':rounds[e.round]||'ФИНАЛ';
+}
+function v10RenderMatch(){
+ const box=$('#tournamentMatchPanel');if(!box)return;const m=v10TournamentMatch;
+ if(!m){
+  const entry=v10ActiveId?v10GetEntry(v10ActiveId):null;
+  const next=entry&&entry.round>0&&!entry.cleared;
+  box.innerHTML=`<div class="tournament-match-empty"><div>⚽</div><b>${next?'СЛЕДУЮЩИЙ ЭТАП ОТКРЫТ':'МАТЧ ТУРНИРА'}</b><p>${next?'Ты прошёл предыдущий раунд. Подготовь состав и выходи на следующий матч.':'Матчи идут по минутам. Используй ускорение 3X, чтобы быстрее пройти турнир.'}</p>${next?'<button class="primary" id="tournamentNextMatch">НАЧАТЬ СЛЕДУЮЩИЙ МАТЧ</button>':''}</div>`;return;
+ }
+ box.innerHTML=`<div class="tournament-match-head"><div><small>${m.roundLabel} · ${m.difficulty==='hard'?'СЛОЖНАЯ':'ЛЁГКАЯ'}</small><h2>${escapeHTML(m.homeName)} <i>VS</i> ${escapeHTML(m.awayName)}</h2></div><span>${m.finished?'МАТЧ ОКОНЧЕН':'LIVE'}</span></div><div class="tournament-score"><b>${m.home}</b><span>${String(m.minute).padStart(2,'0')}'</span><b>${m.away}</b></div><div class="tournament-score-names"><span>${escapeHTML(m.homeName)}</span><span>${escapeHTML(m.awayName)}</span></div><div class="bar"><i style="width:${m.minute/90*100}%"></i></div><div class="tournament-live-log">${(m.log||[]).slice(-5).map(x=>`<div>${escapeHTML(x)}</div>`).join('')}</div><div class="tournament-match-actions">${m.finished?'<button class="primary" id="tournamentContinue">ПРОДОЛЖИТЬ →</button>':`<button class="outline" id="tournamentSpeed">СКОРОСТЬ: ${v10MatchSpeed}X</button><span>Состав: ${v10PlayerStrength()} OVR</span>`}</div>`;
+}
+function v10StopTimer(){if(v10MatchTimer){clearInterval(v10MatchTimer);v10MatchTimer=null;}}
+function v10StartEntry(id,difficulty){
+ const data=v10EnsureState(),entry=data.entries[id],def=v10TournamentDefs().find(x=>x.id===id);
+ if(!entry||!def||entry.cleared||(data.completed||0)>=2||((entry.used||0)>=3&&!entry.inProgress)){toast('Этот турнир сейчас недоступен.');return;}
+ if(v10TournamentMatch){toast('Сначала заверши текущий матч турнира.');return;}
+ if(entry.inProgress&&entry.difficulty!==difficulty){toast('Сначала заверши попытку на выбранной сложности.');return;}
+ if(entry.difficulty!==difficulty){entry.difficulty=difficulty;entry.round=0;entry.wins=0;entry.inProgress=false;}
+ if(entry.round===0&&!entry.inProgress)entry.used++;
+ entry.inProgress=true;
+ v10ActiveId=id;v10ActiveDifficulty=difficulty;save();v10RenderCards();v10RenderBracket();v10StartMatch();
+}
+function v10StartMatch(){
+ v10StopTimer();const def=v10TournamentDefs().find(x=>x.id===v10ActiveId),e=v10GetEntry(v10ActiveId);if(!def||!e)return;
+ const round=Math.min(2,e.round||0),roundLabel=['1/4 ФИНАЛА','ПОЛУФИНАЛ','ФИНАЛ'][round],opponent=v10OpponentFor(def,round);
+ e.inProgress=true;save();
+ const hard=v10ActiveDifficulty==='hard',base=hard?(v10HolidayEra()?74:68):(v10HolidayEra()?58:53);
+ const opponentRating=Math.max(42,Math.min(90,base+round*2+(Math.floor(Math.random()*5)-2)));
+ v10TournamentMatch={minute:0,home:0,away:0,homeName:state.club?.name||'ТВОЙ КЛУБ',awayName:opponent,round,roundLabel,difficulty:v10ActiveDifficulty,opponentRating,finished:false,log:['Арбитр проверяет готовность команд. Матч начинается!']};
+ v10MatchSpeed=1;v10RenderMatch();v10MatchTimer=setInterval(v10MatchTick,420);
+}
+function v10MatchTick(){
+ const m=v10TournamentMatch;if(!m||m.finished)return;m.minute=Math.min(90,m.minute+1);
+ const diff=v10PlayerStrength()-m.opponentRating,homeChance=Math.max(.004,Math.min(.04,.013+diff*.00055)),awayChance=Math.max(.005,Math.min(.035,.014-diff*.00025)),r=Math.random();
+ if(r<homeChance){m.home++;m.log.push(`ГОЛ! ${m.homeName} выходит вперёд.`);}else if(r<homeChance+awayChance){m.away++;m.log.push(`Гол ${m.awayName}. Счёт меняется.`);}else if(m.minute%12===0)m.log.push(['Опасный момент у ворот соперника.','Удар — вратарь переводит на угловой.','Контратака! Защита успевает вернуться.','Команды борются за центр поля.'][Math.floor(Math.random()*4)]);
+ if(m.minute>=90){
+  if(m.home===m.away){
+   const h=3+Math.floor(Math.random()*3)+(v10PlayerStrength()>=m.opponentRating?1:0);
+   const a=3+Math.floor(Math.random()*3)+(v10PlayerStrength()<m.opponentRating?1:0);
+   m.penalties=[h,a];m.winner=h===a?(Math.random()<.5?'home':'away'):(h>a?'home':'away');
+   m.log.push(`Серия пенальти: ${h} — ${a}.`);
+  }else m.winner=m.home>m.away?'home':'away';
+  m.finished=true;v10StopTimer();m.log.push('Финальный свисток!');
+ }v10RenderMatch();if(m.finished)save();
+}
+function v10FinishRound(){
+ const m=v10TournamentMatch;if(!m||!m.finished)return;const entry=v10GetEntry(v10ActiveId),def=v10TournamentDefs().find(x=>x.id===v10ActiveId);if(!entry||!def)return;
+ if(m.winner==='home'||m.home>m.away){
+  entry.inProgress=false;entry.round=Math.min(3,(entry.round||0)+1);entry.wins=(entry.wins||0)+1;
+  if(entry.round>=3){
+   entry.cleared=true;const data=v10EnsureState();data.completed=Math.min(2,(data.completed||0)+1);const reward=v10RewardFor(def,v10ActiveDifficulty);let rewardCard=null;
+   if(reward.kind==='gems')state.gems=(Number(state.gems)||0)+reward.amount;
+   else if(reward.kind==='coins')state.coins=(Number(state.coins)||0)+reward.amount;
+   else if(reward.kind==='player'){
+    const candidates=FCUC_PLAYER_DB.filter(p=>Number(p.ovr)>=62&&Number(p.ovr)<=68&&!fcucOwned(p.name));
+    if(candidates.length){const p=candidates[Math.floor(Math.random()*candidates.length)];rewardCard=fcucAddToClub(p,'tournament');}
+    else state.coins+=20000;
+   }
+   save();updateWallet();v10RenderCards();v10RenderBracket();modal('🏆 ТУРНИР ВЫИГРАН!',`Ты прошёл ${def.name} на сложности ${v10Difficulty[v10ActiveDifficulty].label}. Награда: ${reward.label}.`,rewardCard?fcucCardHTML(rewardCard):'');
+   v10TournamentMatch=null;v10RenderMatch();return;
+  }
+  save();v10RenderCards();v10RenderBracket();modal('ПОБЕДА В МАТЧЕ!',`${m.homeName} ${m.home} — ${m.away} ${m.awayName}${m.penalties?` (пенальти ${m.penalties[0]} — ${m.penalties[1]})`:''}. Следующий этап открыт.`);
+  v10TournamentMatch=null;v10RenderMatch();
+ }else{
+  entry.round=0;entry.wins=0;entry.inProgress=false;save();v10RenderCards();v10RenderBracket();
+  modal('ТУРНИРНЫЙ МАТЧ ПРОИГРАН',`${m.homeName} ${m.home} — ${m.away} ${m.awayName}. Попытка потрачена. Можно начать заново, если остались попытки.`);
+  v10TournamentMatch=null;v10RenderMatch();
+ }
+}
+document.addEventListener('click',e=>{
+ const enter=e.target.closest('[data-tournament-enter]');
+ if(enter){e.preventDefault();e.stopImmediatePropagation();v10StartEntry(enter.dataset.tournamentEnter,enter.dataset.difficulty);return;}
+ if(e.target.closest('#tournamentSpeed')){e.preventDefault();e.stopImmediatePropagation();v10MatchSpeed=v10MatchSpeed===1?3:1;v10StopTimer();v10MatchTimer=setInterval(v10MatchTick,420/v10MatchSpeed);v10RenderMatch();return;}
+ if(e.target.closest('#tournamentContinue')){e.preventDefault();e.stopImmediatePropagation();v10FinishRound();return;}
+ if(e.target.closest('#tournamentNextMatch')){e.preventDefault();e.stopImmediatePropagation();v10StartMatch();return;}
+},true);
+const v10NavigateBase=navigate;
+navigate=function(page){v10NavigateBase(page);if(page==='tournaments'){if($('#crumb'))$('#crumb').textContent='ТУРНИРЫ';v10EnsureState();v10RenderCards();v10RenderBracket();v10RenderMatch();}};
+v10EnsureState();v10RenderCards();
+setInterval(()=>{const before=state.tournamentsV10?.dayKey;v10EnsureState();if(before!==state.tournamentsV10?.dayKey){v10ActiveId=null;v10ActiveDifficulty=null;v10TournamentMatch=null;v10StopTimer();v10RenderCards();v10RenderBracket();v10RenderMatch();}},60000);
+
 })();

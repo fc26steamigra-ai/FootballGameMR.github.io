@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FC Ultimate Club v0.9 — Winter & New Year</title>
+<title>FC Ultimate Club 1.0 — Winter & Tournaments</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css"></head><body>
@@ -9,7 +9,7 @@
 <div class="club"><div class="crest" id="clubCrest">❄</div><div><b id="clubNameSide">FROST UNITED</b><small>Уровень клуба <span id="clubLevel">1</span></small></div></div>
 <nav>
 <button class="nav active" data-page="home">⌂ <span>Главная</span></button><button class="nav" data-page="squad">♙ <span>Состав</span></button>
-<button class="nav" data-page="match">⚽ <span>Матчи</span></button><button class="nav" data-page="event">✦ <span>Событие</span></button>
+<button class="nav" data-page="match">⚽ <span>Матчи</span></button><button class="nav" data-page="event">✦ <span>Событие</span></button><button class="nav" data-page="tournaments">🏆 <span>Турниры</span></button>
 <button class="nav" data-page="quests">☷ <span>Задания</span></button><button class="nav" data-page="market">⇄ <span>Рынок</span></button><button class="nav" data-page="store">▣ <span>Магазин</span></button><button class="nav" data-page="pass">❄ <span>Зимний пасс</span></button><button class="nav" data-page="settings">⚙ <span>Настройки клуба</span></button>
 </nav><div class="side-bottom">SEASON 01 <b>WINTER</b><small id="saveStatus">Локальное сохранение</small><button id="resetSave" class="link">СБРОСИТЬ СОХРАНЕНИЕ</button></div></aside>
 <main class="main"><header class="topbar"><div class="crumb">КЛУБ <i>/</i> <b id="crumb">ГЛАВНАЯ</b></div>
@@ -47,6 +47,13 @@
 <div class="section-head"><div><small>ЗИМНИЙ МАРКЕТ</small><h2>КАРТОЧКИ СОБЫТИЯ</h2></div><span>69–82 OVR · ЗА ЖЕТОНЫ</span></div><div class="market-grid event-player-market" id="eventPlayerMarket"></div>
 <div class="section-head"><div><small>ОБМЕН КАРТОЧЕК</small><h2>ПОЛУЧИ ENDРICK</h2></div><span>ТРЕБУЕТСЯ 18 ИГРОКОВ</span></div>
 <div class="panel exchange-panel"><p>Обмени три карточки атакующих игроков с рейтингом от 60. Игроки должны находиться в запасе или резерве, стартовый состав не затрагивается.</p><b id="exchangeRosterStatus">Игроков в клубе: 16/18</b><div class="trade-selects"><select id="tradePlayer1"><option value="">Игрок 1</option></select><select id="tradePlayer2"><option value="">Игрок 2</option></select><select id="tradePlayer3"><option value="">Игрок 3</option></select></div><button class="primary" id="tradeEndrick" disabled>НУЖНО 18 ИГРОКОВ</button></div></section>
+<section class="page" id="tournaments">
+ <div class="tournament-hero"><div><small>КУБОК ДНЯ · ДВА ТУРНИРА КАЖДЫЙ ДЕНЬ</small><h1>TOURNAMENT <em>HUB</em></h1><p>Собери состав, выбери уровень сложности и пройди путь от четвертьфинала до финала. Каждая победа приближает к награде.</p><button class="outline" data-go="squad">УПРАВЛЯТЬ СОСТАВОМ →</button></div><div class="tournament-hero-mark">🏆</div><div class="tournament-daily-meta"><b id="tournamentDate">—</b><span id="tournamentDailyProgress">0 / 2 ЗАВЕРШЕНО</span><span>3 ПОПЫТКИ НА ТУРНИР</span><span>СИЛА СОСТАВА: <b id="tournamentTeamRating">—</b> OVR</span></div></div>
+ <div class="section-head"><div><small>ЕЖЕДНЕВНЫЕ СОСТЯЗАНИЯ</small><h2>ВЫБЕРИ ТУРНИР</h2></div><span id="tournamentSeasonLabel">WINTER TOUR</span></div><div class="tournament-grid" id="tournamentCards"></div>
+ <div class="section-head"><div><small>ТВОЙ ПУТЬ К ФИНАЛУ</small><h2>ТУРНИРНАЯ СЕТКА</h2></div><span id="tournamentBracketLabel">ВЫБЕРИ ТУРНИР</span></div><div class="panel tournament-bracket" id="tournamentBracket"><p class="muted">Выбери один из ежедневных турниров, чтобы начать путь с 1/4 финала.</p></div>
+ <div class="panel tournament-match-panel" id="tournamentMatchPanel"><div class="tournament-match-empty"><div>⚽</div><b>МАТЧ ТУРНИРА</b><p>Здесь будут проходить четвертьфинал, полуфинал и финал. Матчи идут по минутам — доступно ускорение 3X.</p></div></div>
+ <div class="tournament-rules"><b>ПРАВИЛА ТУРНИРОВ</b><span>• Два турнира можно завершить за день.</span><span>• На каждый турнир даётся три попытки.</span><span>• В каждом турнире есть лёгкая и сложная сложность.</span><span>• Прогресс и попытки сохраняются автоматически.</span></div>
+</section>
 <section class="page" id="newyear">
  <div class="newyear-hero"><div class="newyear-tree">🎄</div><small>ПРАЗДНИЧНЫЙ ФУТБОЛЬНЫЙ ИВЕНТ · 10.12.2026 — 05.01.2027</small><h1>NEW <em>YEAR</em></h1><p>Забирай подарки по датам, выполняй недельные задания и собирай новогодние карточки.</p><div class="newyear-wallet">🎟 ЖЕТОНЫ NEW YEAR: <b id="newYearTokenBalance">0</b></div><button class="outline" id="backToWinter" type="button">← НАЗАД В WINTER WUNDERKIND</button></div>
  <div class="section-head"><div><small>КАЛЕНДАРЬ ПОДАРКОВ</small><h2>ПОДАРОЧНАЯ КОЛОНКА</h2></div><span>ОТКРЫВАЙ В ДЕНЬ ПОЛУЧЕНИЯ</span></div><div class="newyear-gift-timeline" id="newYearGiftTimeline"></div>
