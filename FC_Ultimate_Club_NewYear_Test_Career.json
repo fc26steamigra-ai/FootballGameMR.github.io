@@ -1,0 +1,262 @@
+{
+  "game": "FC Ultimate Club 1.0",
+  "version": "1.0-test",
+  "testCareer": true,
+  "state": {
+    "gems": 500,
+    "coins": 2500000,
+    "eventCoins": 250,
+    "winterGems": 250,
+    "eventTokens": 250,
+    "newYearTokens": 9,
+    "eventPoints": 5000,
+    "players": [
+      {
+        "id": "p01",
+        "name": "Aleksey Morozov",
+        "pos": "GK",
+        "ovr": 58,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p02",
+        "name": "Ilya Volkov",
+        "pos": "LB",
+        "ovr": 57,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p03",
+        "name": "Maksim Orlov",
+        "pos": "CB",
+        "ovr": 60,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p04",
+        "name": "Daniil Kovalev",
+        "pos": "CB",
+        "ovr": 59,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p05",
+        "name": "Artem Sokolov",
+        "pos": "RB",
+        "ovr": 56,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p06",
+        "name": "Egor Lebedev",
+        "pos": "CM",
+        "ovr": 60,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p07",
+        "name": "Nikita Fedorov",
+        "pos": "CM",
+        "ovr": 58,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p08",
+        "name": "Kirill Pavlov",
+        "pos": "CAM",
+        "ovr": 59,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p09",
+        "name": "Matvey Smirnov",
+        "pos": "LW",
+        "ovr": 57,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p10",
+        "name": "Timur Andreev",
+        "pos": "ST",
+        "ovr": 60,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p11",
+        "name": "Roman Nikolaev",
+        "pos": "RW",
+        "ovr": 56,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p12",
+        "name": "Vladislav Gromov",
+        "pos": "ST",
+        "ovr": 55,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p13",
+        "name": "Pavel Zakharov",
+        "pos": "CM",
+        "ovr": 54,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p14",
+        "name": "Mark Vasiliev",
+        "pos": "LB",
+        "ovr": 53,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p15",
+        "name": "Denis Bely",
+        "pos": "CB",
+        "ovr": 55,
+        "club": "Frost United",
+        "price": 0
+      },
+      {
+        "id": "p16",
+        "name": "Anton Egorov",
+        "pos": "GK",
+        "ovr": 52,
+        "club": "Frost United",
+        "price": 0
+      }
+    ],
+    "market": [],
+    "startingXI": [
+      "p01",
+      "p02",
+      "p03",
+      "p04",
+      "p05",
+      "p06",
+      "p07",
+      "p08",
+      "p09",
+      "p10",
+      "p11"
+    ],
+    "bench": [
+      "p12",
+      "p13",
+      "p14",
+      "p15",
+      "p16"
+    ],
+    "reserve": [],
+    "formation": "4-3-3",
+    "style": "Баланс",
+    "weeklyProgress": {
+      "matches": 0,
+      "goals": 0,
+      "packs": 0,
+      "wins": 0,
+      "buys": 0,
+      "eventPoints": 1000
+    },
+    "eventProgress": {
+      "matches": 0,
+      "goals": 0,
+      "wins": 0
+    },
+    "weeklyClaimed": [],
+    "eventClaimed": [],
+    "passClaimed": [],
+    "seasonXP": 0,
+    "stats": {
+      "matches": 0,
+      "wins": 0,
+      "goals": 0,
+      "packs": 0,
+      "buys": 0
+    },
+    "history": [],
+    "weekStart": "2026-11-23",
+    "clubLevel": 1,
+    "economyVersion": 3,
+    "club": {
+      "name": "FROST UNITED",
+      "short": "FU",
+      "color": "#64c9f2",
+      "accent": "#f0ce85"
+    },
+    "dailyDate": "2026-11-23",
+    "dailyProgress": {
+      "matches": 0,
+      "goals": 0,
+      "wins": 0
+    },
+    "dailyClaimed": [],
+    "branchProgress": {
+      "matches": 0,
+      "goals": 0,
+      "wins": 0,
+      "packs": 0
+    },
+    "branchClaimed": false,
+    "quest3DayAnchor": "2026-11-23",
+    "eventMatchDate": "2026-11-23",
+    "eventMatchesToday": 0,
+    "newYearTestMode": true,
+    "newYearGiftClaims": [],
+    "newYearWeekKey": "2026-11-23",
+    "newYearWeekProgress": {
+      "matches": 3,
+      "goals": 5,
+      "wins": 2
+    },
+    "newYearWeekClaimed": false,
+    "winterGuaranteedClaims": [],
+    "eventPathClaimed": [],
+    "tactics": {
+      "mentality": "Баланс",
+      "width": "Стандартная",
+      "press": "Средний",
+      "line": "Средняя",
+      "build": "Сбалансированный"
+    },
+    "winterPathWeekKey": "2026-11-23",
+    "winterPathClaimed": [],
+    "packStarterGrantClaimed": true,
+    "tournamentsV10": {
+      "dayKey": "2026-11-23",
+      "completed": 0,
+      "entries": {
+        "daily_a": {
+          "used": 0,
+          "round": 0,
+          "cleared": false,
+          "difficulty": null,
+          "wins": 0,
+          "inProgress": false
+        },
+        "daily_b": {
+          "used": 0,
+          "round": 0,
+          "cleared": false,
+          "difficulty": null,
+          "wins": 0,
+          "inProgress": false
+        }
+      }
+    }
+  }
+}
