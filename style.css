@@ -281,3 +281,47 @@ body.newyear-theme{background:#10291f}body.newyear-theme .shell{background:linea
 @media(prefers-reduced-motion:reduce){.card-fly-in,.card-fly-in:after,.gift-open{animation:none!important}}
 
 .mr-tournament-tactics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0;padding:12px;border:1px solid rgba(140,170,205,.2);border-radius:12px;background:rgba(8,18,32,.45)}.mr-tournament-tactics label{display:grid;gap:5px;font-size:10px;color:#9eb4ca;font-weight:800}.mr-tournament-tactics select{width:100%;min-width:0;padding:9px;border-radius:8px;background:#12243a;color:#eaf4ff;border:1px solid #314962}.mr-tournament-tactics button{grid-column:1/-1}@media(max-width:560px){.mr-tournament-tactics{gap:6px;padding:8px}.mr-tournament-tactics select{font-size:12px}}
+
+
+/* MR FOOTBALL 27 v1.2 */
+.mr-v12-settings,.mr-v12-fodder,.mr-v12-upgrade-panel,.mr-v12-stadium-upgrade{margin-top:14px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--panel,rgba(255,255,255,.035))}
+.mr-v12-settings>strong,.mr-v12-fodder>strong,.mr-v12-stats>strong{display:block;margin-bottom:12px;font-size:12px;letter-spacing:.08em}
+.mr-v12-settings-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.mr-v12-settings-grid label,.mr-v12-upgrade-panel>label{display:flex;flex-direction:column;gap:6px;font-size:10px;color:var(--muted,#9ba9b8);font-weight:800;letter-spacing:.05em}
+.mr-v12-settings-grid select,.mr-v12-fodder select,.mr-v12-upgrade-panel select{width:100%;min-width:0;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface,#101c2a);color:var(--text,#fff)}
+.mr-v12-stats{margin-top:12px;padding:16px;border:1px solid var(--line);border-radius:16px}
+.mr-v12-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.mr-v12-stat{padding:10px;border-radius:10px;background:rgba(255,255,255,.045);min-width:0}
+.mr-v12-stat b{display:block;font-size:17px}
+.mr-v12-stat small{font-size:9px;color:var(--muted,#9ba9b8);letter-spacing:.04em}
+.mr-v12-daily-head,.mr-v12-stadium-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px;border-radius:18px;background:linear-gradient(120deg,rgba(40,126,180,.2),rgba(70,190,170,.08));border:1px solid var(--line)}
+.mr-v12-daily-head h2,.mr-v12-stadium-hero h2{margin:5px 0;font-size:24px}
+.mr-v12-daily-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-top:14px}
+.mr-v12-day{padding:14px 10px;border:1px solid var(--line);border-radius:14px;background:var(--panel,rgba(255,255,255,.03));min-height:120px;display:flex;flex-direction:column;gap:8px}
+.mr-v12-day b{font-size:12px}.mr-v12-day span{font-size:11px;color:var(--muted,#9ba9b8)}.mr-v12-day small{font-size:9px;color:#75d8c0}
+.mr-v12-day.current{border-color:#6bcbbd;box-shadow:0 0 0 1px rgba(107,203,189,.2)}.mr-v12-day.claimed{opacity:.55}.mr-v12-day.special{background:linear-gradient(145deg,rgba(231,184,86,.15),rgba(255,255,255,.025))}
+.mr-v12-exchange-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0 20px}
+.mr-v12-exchange-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel,rgba(255,255,255,.03));min-width:0}
+.mr-v12-exchange-card .ovr{font-size:28px;font-weight:900}.mr-v12-exchange-card h3{margin:5px 0;font-size:15px}.mr-v12-exchange-card p{font-size:11px;color:var(--muted,#9ba9b8);min-height:34px}
+.mr-v12-upgrade-top,.mr-v12-stadium-upgrade{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.mr-v12-upgrade-top h2{font-size:28px;margin:4px 0 14px}
+.mr-v12-upgrade-preview{margin:12px 0;padding:14px;border-radius:12px;background:rgba(255,255,255,.04);min-height:50px}
+.mr-v12-stadium-hero{margin-bottom:14px;justify-content:flex-start}.mr-v12-stadium-art{font-size:64px;min-width:90px;text-align:center}
+.mr-v12-stadium-hero>div:last-child{flex:1}.mr-v12-stadium-hero .bar{margin:12px 0}
+.mr-v12-stadium-upgrade{padding:18px}
+.mr-v12-stadium-upgrade h2{margin:6px 0}
+#marketEventFilter{min-width:160px}
+@media(max-width:850px){.mr-v12-daily-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.mr-v12-exchange-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mr-v12-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.mr-v12-daily-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mr-v12-exchange-grid{grid-template-columns:1fr}.mr-v12-settings-grid{grid-template-columns:1fr}.mr-v12-daily-head,.mr-v12-stadium-upgrade,.mr-v12-upgrade-top{align-items:stretch;flex-direction:column}.mr-v12-stadium-art{font-size:42px;min-width:52px}.mr-v12-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mr-v12-stadium-hero{padding:15px}}
+
+.mr-v12-instructions{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.mr-v12-instructions small{width:100%;font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--muted,#9ba9b8)}
+.mr-v12-instructions label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text,#fff);font-weight:600}
+.mr-v12-instructions input{accent-color:#58cbb4}
+
+.brand{align-items:flex-start;flex-direction:column;gap:4px}
+.brand>b{font-size:19px;letter-spacing:-.35px;padding:4px 8px}
+.brand>small{font-size:9px;letter-spacing:1.5px;color:var(--muted,#9ba9b8);font-weight:800}
+
+/* v1.3 New Year pass responsive cards */
+.mr-ny-pass-hero{margin:18px 0;padding:22px}.mr-ny-pass-hero h2{margin:0 0 8px}.mr-ny-pass-hero .bar{margin-top:16px}.mr-ny-pass-hero .bar i{display:block;height:100%;background:linear-gradient(90deg,#d9f0ff,#78bde8)}#nyPassRewards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.pass-reward{min-width:0}.pass-reward button{margin-top:10px;width:100%}@media(max-width:850px){#nyPassRewards{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){#nyPassRewards{grid-template-columns:1fr}.mr-ny-pass-hero{padding:16px}}
